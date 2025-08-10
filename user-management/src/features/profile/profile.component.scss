@@ -1,0 +1,185 @@
+.container {
+  @apply max-w-4xl mx-auto;
+}
+
+.profile-header {
+  @apply bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-8;
+}
+
+.profile-avatar {
+  position: relative;
+  
+  &:hover .edit-overlay {
+    @apply opacity-100;
+  }
+}
+
+.edit-overlay {
+  @apply absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 transition-opacity cursor-pointer;
+}
+
+.form-group {
+  @apply space-y-2;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-foreground;
+}
+
+.form-input {
+  @apply w-full px-3 py-2 border border-input rounded-md bg-background text-foreground;
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
+  @apply transition-colors duration-200;
+  
+  &:read-only {
+    @apply bg-muted text-muted-foreground cursor-not-allowed;
+  }
+  
+  &:focus {
+    @apply ring-2 ring-primary/20 border-primary;
+  }
+}
+
+.status-indicator {
+  @apply inline-flex items-center space-x-2;
+  
+  .status-dot {
+    @apply h-2 w-2 rounded-full;
+    
+    &.active {
+      @apply bg-green-500;
+    }
+    
+    &.inactive {
+      @apply bg-red-500;
+    }
+    
+    &.pending {
+      @apply bg-yellow-500;
+    }
+  }
+}
+
+.activity-item {
+  @apply flex items-center space-x-3 py-2 border-b border-border/50 last:border-b-0;
+  
+  .activity-dot {
+    @apply h-2 w-2 rounded-full flex-shrink-0;
+  }
+  
+  .activity-text {
+    @apply text-sm text-muted-foreground flex-1;
+  }
+  
+  .activity-time {
+    @apply text-xs text-muted-foreground;
+  }
+}
+
+.stats-item {
+  @apply flex justify-between items-center py-2 border-b border-border/30 last:border-b-0;
+  
+  .stats-label {
+    @apply text-muted-foreground;
+  }
+  
+  .stats-value {
+    @apply font-semibold text-foreground;
+  }
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  @apply disabled:pointer-events-none disabled:opacity-50;
+  
+  &.btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  
+  &.btn-secondary {
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  &.btn-sm {
+    @apply h-9 px-3;
+  }
+  
+  &.btn-md {
+    @apply h-10 px-4 py-2;
+  }
+}
+
+.card {
+  @apply bg-card text-card-foreground rounded-lg border shadow-sm;
+  
+  .card-header {
+    @apply p-6 border-b;
+  }
+  
+  .card-content {
+    @apply p-6;
+  }
+  
+  .card-title {
+    @apply text-lg font-semibold;
+  }
+}
+
+.grid {
+  @apply gap-6;
+  /* Add 'grid' as a class in your HTML template for .grid */
+  
+  /*
+    Instead of using @apply grid-cols-1 or grid-cols-2 here, add 'grid-cols-1' or 'md:grid-cols-2' as classes in your HTML template where needed.
+    Example:
+    <div class="grid grid-cols-1 md:grid-cols-2 ...">...</div>
+  */
+}
+
+// Animation classes
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 200ms ease-in-out forwards;
+}
+
+.slide-up {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: slideUp 300ms ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
+  }
+  
+  .profile-header {
+    @apply p-4;
+  }
+  
+  .card-content {
+    @apply p-4;
+  }
+}

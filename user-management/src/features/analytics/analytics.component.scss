@@ -1,0 +1,21 @@
+// Analytics component styles
+// Most styling is handled by Tailwind CSS classes in the template
+
+// Card hover effects
+.rounded-lg.border.bg-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.rounded-lg.border.bg-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+// Chart placeholder animation
+.h-64.flex.items-center.justify-center {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.h-64.flex.items-center.justify-center:hover {
+  background-color: hsl(var(--muted) / 0.3);
+}

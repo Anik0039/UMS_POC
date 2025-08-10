@@ -1,0 +1,68 @@
+// Navbar component styles
+// Most styling is handled by Tailwind CSS classes in the template
+
+// Ensure navbar container always uses full width
+.container {
+  width: 100%;
+  max-width: none;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+// Ensure right section stays in position
+.flex-1 {
+  flex: 1 1 0%;
+  min-width: 0; // Prevent flex item from overflowing
+}
+
+// Right section positioning
+.flex.items-center.space-x-4 {
+  margin-left: auto;
+  flex-shrink: 0; // Prevent shrinking
+}
+
+// Animation for dropdown menu
+@keyframes slide-in-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation-duration: 0.15s;
+  animation-fill-mode: both;
+}
+
+.slide-in-from-top-2 {
+  animation-name: slide-in-from-top;
+}
+
+// Custom focus styles for search input
+input[type="search"]:focus {
+  outline: none;
+}
+
+// Backdrop blur support
+@supports (backdrop-filter: blur(8px)) {
+  .backdrop-blur {
+    backdrop-filter: blur(8px);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  // Ensure proper spacing on mobile
+  .flex.items-center.space-x-4 {
+    gap: 0.5rem;
+  }
+}

@@ -1,0 +1,38 @@
+// Dashboard component styles
+// Most styling is handled by Tailwind CSS classes in the template
+
+// Custom card hover effects
+.rounded-lg.border.bg-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.rounded-lg.border.bg-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+// Stats animation
+.text-2xl.font-bold {
+  transition: color 0.2s ease-in-out;
+}
+
+// Button hover effects
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+// Grid responsive adjustments
+@media (max-width: 768px) {
+  .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-4 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .grid.gap-4.md\:grid-cols-2.lg\:grid-cols-7 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .col-span-4,
+  .col-span-3 {
+    grid-column: span 1 / span 1;
+  }
+}
