@@ -1,8 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Search, Filter, X, Upload, User, Edit, Trash2, ChevronDown } from 'lucide-angular';
 import { ButtonComponent } from '../../shared/components/button.component';
+import { UserApiService, ApiUser, ApiUsersResponse } from '../../services/user-api.service';
+import { AuthService } from '../../services/auth.service';
+import { AuthApiService } from '../../services/auth-api.service';
+import { catchError, of } from 'rxjs';
 
 export interface User {
   picture: string;
@@ -150,8 +154,30 @@ export interface User {
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div *ngIf="loading" class="flex items-center justify-center p-8">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p class="text-muted-foreground">Loading users...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="error && !loading" class="rounded-md border border-destructive bg-destructive/10 p-4">
+        <div class="flex items-center space-x-2">
+          <div class="text-destructive font-medium">Error</div>
+        </div>
+        <p class="text-destructive mt-1">{{ error }}</p>
+        <button 
+          (click)="loadUsers()" 
+          class="mt-2 px-3 py-1 text-sm bg-destructive text-destructive-foreground rounded hover:bg-destructive/90"
+        >
+          Retry
+        </button>
+      </div>
+
       <!-- Users table -->
-      <div class="rounded-md border">
+      <div *ngIf="!loading && !error" class="rounded-md border">
         <div class="overflow-auto max-h-96" style="scrollbar-width: thin; scrollbar-color: #888 #f1f1f1;">
           <table class="w-full">
             <thead>
@@ -216,7 +242,7 @@ export interface User {
         <!-- Pagination Controls -->
         <div class="flex items-center justify-between p-4 border-t bg-muted/30">
           <div class="text-sm text-muted-foreground">
-            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} of {{ filteredUsers.length }} users
+            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, totalRecords) }} of {{ totalRecords }} users
           </div>
           <div class="flex items-center space-x-2">
             <button 
@@ -457,7 +483,11 @@ export interface User {
   `,
   styleUrl: './users.component.scss'
 })
-export class UsersComponent {
+export class UsersComponent implements OnInit {
+  private userApiService = inject(UserApiService);
+  private authService = inject(AuthService);
+  private authApiService = inject(AuthApiService);
+  
   plusIcon = Plus;
   searchIcon = Search;
   filterIcon = Filter;
@@ -471,6 +501,8 @@ export class UsersComponent {
   Math = Math; // Make Math available in template
 
   showUserForm = false;
+  loading = false;
+  error: string | null = null;
   
   // Search and filter properties
   searchTerm = '';
@@ -498,8 +530,113 @@ export class UsersComponent {
   currentPage = 1;
   itemsPerPage = 5;
   totalPages = 0;
+  totalRecords = 0;
 
-  users = [
+  users: User[] = [];
+  
+  ngOnInit() {
+    this.loadUsers();
+  }
+
+  loadUsers() {
+    // Check authentication before making API call
+    if (!this.authService.isLoggedIn()) {
+      this.error = 'You must be logged in to view users';
+      console.error('❌ User not authenticated');
+      return;
+    }
+
+    const authHeader = this.authApiService.getAuthorizationHeader();
+    if (!authHeader) {
+      this.error = 'Authentication token not found. Please login again.';
+      console.error('❌ No authentication token found');
+      return;
+    }
+
+    console.log('🔐 Authentication check passed:', {
+      isLoggedIn: this.authService.isLoggedIn(),
+      hasAuthHeader: !!authHeader,
+      tokenInfo: this.authApiService.getTokenInfo()
+    });
+
+    this.loading = true;
+    this.error = null;
+    
+    this.userApiService.getApiUsers(this.currentPage, this.itemsPerPage)
+      .pipe(
+        catchError(error => {
+          console.error('❌ Error loading users:', error);
+          
+          // Handle specific authentication errors
+          if (error.status === 401) {
+            this.error = 'Authentication failed. Please login again.';
+          } else if (error.status === 403) {
+            this.error = 'You do not have permission to view users.';
+          } else {
+            this.error = 'Failed to load users. Please try again.';
+          }
+          
+          return of({ isSuccess: false, value: [], errorMessage: error.message, totalRecord: 0 });
+        })
+      )
+      .subscribe((response: ApiUsersResponse) => {
+        this.loading = false;
+        
+        if (response.isSuccess) {
+          console.log('✅ Users loaded successfully:', response);
+          this.users = this.transformApiUsers(response.value);
+          this.totalRecords = response.totalRecord;
+          this.applyFilters();
+        } else {
+          this.error = response.errorMessage || 'Failed to load users';
+          console.error('❌ API returned error:', response.errorMessage);
+        }
+      });
+  }
+
+  transformApiUsers(apiUsers: ApiUser[]): User[] {
+    return apiUsers.map(apiUser => ({
+      picture: apiUser.picture || '',
+      userId: apiUser.userName,
+      firstName: apiUser.firstName,
+      middleName: apiUser.middleName,
+      lastName: apiUser.lastName,
+      dateOfBirth: apiUser.dateOfBirth,
+      contactNo: apiUser.contactNo,
+      email: apiUser.email,
+      address: apiUser.address,
+      initials: this.generateInitials(apiUser.firstName, apiUser.middleName, apiUser.lastName),
+      name: `${apiUser.firstName} ${apiUser.middleName ? apiUser.middleName + ' ' : ''}${apiUser.lastName}`.trim(),
+      role: 'User', // Default role since API doesn't provide this
+      status: apiUser.status ? 'Active' : 'Inactive',
+      joinedDate: this.formatDate(apiUser.dateOfBirth)
+    }));
+  }
+
+  generateInitials(firstName: string, middleName: string, lastName: string): string {
+    return [firstName, middleName, lastName]
+      .filter(Boolean)
+      .map(name => name.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  }
+
+  formatDate(dateString: string): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  // Mock users for fallback (keeping original structure)
+  mockUsers = [
     {
       picture: '',
       userId: 'alicej',
@@ -647,40 +784,42 @@ export class UsersComponent {
   ];
 
   constructor() {
-    this.filteredUsers = [...this.users];
-    this.updatePagination();
+    // Constructor simplified - initialization happens in ngOnInit
   }
 
   // Pagination methods
   get paginatedFilteredUsers() {
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    const endIndex = startIndex + this.itemsPerPage;
-    return this.filteredUsers.slice(startIndex, endIndex);
+    // For API-based pagination, return filtered users directly since pagination is handled by API
+    return this.filteredUsers;
   }
 
   updatePagination() {
-    this.totalPages = Math.ceil(this.filteredUsers.length / this.itemsPerPage);
+    this.totalPages = Math.ceil(this.totalRecords / this.itemsPerPage);
     // Reset to first page if current page is beyond available pages
     if (this.currentPage > this.totalPages && this.totalPages > 0) {
       this.currentPage = 1;
+      this.loadUsers(); // Reload data for the correct page
     }
   }
 
   goToPage(page: number) {
     if (page >= 1 && page <= this.totalPages) {
       this.currentPage = page;
+      this.loadUsers(); // Load data for the selected page
     }
   }
 
   previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--;
+      this.loadUsers(); // Load data for the previous page
     }
   }
 
   nextPage() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
+      this.loadUsers(); // Load data for the next page
     }
   }
 
@@ -807,6 +946,7 @@ export class UsersComponent {
 
   // Search and filter methods
   onSearch(): void {
+    this.currentPage = 1; // Reset to first page when searching
     this.applyFilters();
   }
 
@@ -815,6 +955,7 @@ export class UsersComponent {
   }
 
   onFilterChange(): void {
+    this.currentPage = 1; // Reset to first page when filtering
     this.applyFilters();
   }
 
@@ -825,10 +966,13 @@ export class UsersComponent {
     this.selectedJoinedMonth = '';
     this.selectedJoinedYear = '';
     this.showFilterDropdown = false;
-    this.applyFilters();
+    this.currentPage = 1; // Reset to first page when clearing filters
+    this.loadUsers(); // Reload data without filters
   }
 
   private applyFilters(): void {
+    // For API-based filtering, we'll apply filters locally for now
+    // In a real implementation, you might want to send filter parameters to the API
     this.filteredUsers = this.users.filter(user => {
       // Search filter
       const searchMatch = !this.searchTerm || 
@@ -867,6 +1011,7 @@ export class UsersComponent {
       return searchMatch && statusMatch && roleMatch && dateMatch;
     });
 
-    this.updatePagination();
+    // Don't call updatePagination here since we're using API-based pagination
+    // this.updatePagination();
   }
 }

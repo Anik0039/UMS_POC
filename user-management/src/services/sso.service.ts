@@ -1,6 +1,8 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { Injectable, Optional } from '@angular/core';
+import { Observable, of, from } from 'rxjs';
+import { delay, map, catchError } from 'rxjs/operators';
+import { KeycloakService } from 'keycloak-angular';
+import { appConfig } from '../config/app.config';
 
 export interface SSOProvider {
   id: string;
@@ -21,71 +23,67 @@ export interface SSOUser {
   providedIn: 'root'
 })
 export class SSOService {
+  constructor(@Optional() private keycloakService: KeycloakService) {}
   private readonly ssoProviders: SSOProvider[] = [
     {
-      id: 'google',
-      name: 'Google',
-      icon: 'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z',
-      color: '#4285f4'
-    },
-    {
-      id: 'microsoft',
-      name: 'Microsoft',
-      icon: 'M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z',
-      color: '#00a1f1'
-    },
-    {
-      id: 'azure',
-      name: 'Azure AD',
-      icon: 'M0 0h24v24H0z',
-      color: '#0078d4'
+      id: 'keycloak',
+      name: 'Keycloak SSO',
+      icon: 'M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z',
+      color: '#4d7c0f'
     }
   ];
 
-  // Mock SSO users for demo purposes
-  private readonly mockSSOUsers: { [key: string]: SSOUser } = {
-    'google': {
-      id: 'google_123',
-      email: 'user@gmail.com',
-      name: 'John Doe',
-      provider: 'google',
-      avatar: 'https://via.placeholder.com/40'
-    },
-    'microsoft': {
-      id: 'ms_456',
-      email: 'user@outlook.com',
-      name: 'Jane Smith',
-      provider: 'microsoft',
-      avatar: 'https://via.placeholder.com/40'
-    },
-    'azure': {
-      id: 'azure_789',
-      email: 'user@company.com',
-      name: 'Admin User',
-      provider: 'azure',
-      avatar: 'https://via.placeholder.com/40'
-    }
-  };
+  // Keycloak user profile mapping
+  private mapKeycloakUserToSSOUser(keycloakProfile: any): SSOUser {
+    return {
+      id: keycloakProfile.sub || keycloakProfile.id,
+      email: keycloakProfile.email || '',
+      name: keycloakProfile.name || `${keycloakProfile.given_name || ''} ${keycloakProfile.family_name || ''}`.trim(),
+      provider: 'keycloak',
+      avatar: keycloakProfile.picture || 'https://via.placeholder.com/40'
+    };
+  }
 
   getSSOProviders(): SSOProvider[] {
+    if (!appConfig.features.enableKeycloak) {
+      return [];
+    }
     return this.ssoProviders;
   }
 
   loginWithSSO(providerId: string): Observable<SSOUser> {
-    // Simulate SSO authentication process
-    return of(null).pipe(
-      delay(1500), // Simulate network delay
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
+      throw new Error('SSO is disabled. Please use API authentication.');
+    }
+
+    if (providerId !== 'keycloak') {
+      throw new Error(`SSO provider ${providerId} not supported`);
+    }
+
+    // Use proper redirect URI for login
+    const loginOptions = {
+      redirectUri: window.location.origin + '/'
+    };
+
+    return from(this.keycloakService.login(loginOptions)).pipe(
       map(() => {
-        const user = this.mockSSOUsers[providerId];
-        if (!user) {
-          throw new Error(`SSO provider ${providerId} not found`);
+        // After successful login, get user profile
+        const userProfile = this.keycloakService.getKeycloakInstance().profile;
+        if (!userProfile) {
+          throw new Error('Failed to get user profile from Keycloak');
         }
+
+        const ssoUser = this.mapKeycloakUserToSSOUser(userProfile);
         
         // Store SSO session info
         localStorage.setItem('sso_provider', providerId);
-        localStorage.setItem('sso_user', JSON.stringify(user));
+        localStorage.setItem('sso_user', JSON.stringify(ssoUser));
         
-        return user;
+        return ssoUser;
+      }),
+      catchError(error => {
+        console.error('Keycloak login error:', error);
+        throw error;
       })
     );
   }
@@ -100,24 +98,63 @@ export class SSOService {
   }
 
   logoutSSO(): void {
+    if (appConfig.features.enableKeycloak && this.keycloakService) {
+      // Logout from Keycloak
+      this.keycloakService.logout();
+    }
+    
+    // Clear local storage
     localStorage.removeItem('sso_provider');
     localStorage.removeItem('sso_user');
   }
 
   isSSOModeEnabled(): boolean {
-    return !!this.getSSOProvider();
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
+      return false;
+    }
+    return this.keycloakService.isLoggedIn();
   }
 
-  // Simulate SSO token validation
+  // Validate Keycloak token
   validateSSOToken(): Observable<boolean> {
-    const provider = this.getSSOProvider();
-    const user = this.getSSOUser();
-    
-    if (!provider || !user) {
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
       return of(false);
     }
+    
+    return of(this.keycloakService.isLoggedIn()).pipe(
+      map(isLoggedIn => {
+        if (isLoggedIn) {
+          // Check if token is still valid
+          const token = this.keycloakService.getKeycloakInstance().token;
+          return !!token && !this.keycloakService.isTokenExpired();
+        }
+        return false;
+      }),
+      catchError(() => of(false))
+    );
+  }
 
-    // Simulate token validation
-    return of(true).pipe(delay(500));
+  // Get Keycloak access token
+  getAccessToken(): string | undefined {
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
+      return undefined;
+    }
+    return this.keycloakService.getKeycloakInstance().token;
+  }
+
+  // Get user roles from Keycloak
+  getUserRoles(): string[] {
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
+      return [];
+    }
+    return this.keycloakService.getUserRoles();
+  }
+
+  // Check if user has specific role
+  hasRole(role: string): boolean {
+    if (!appConfig.features.enableKeycloak || !this.keycloakService) {
+      return false;
+    }
+    return this.keycloakService.isUserInRole(role);
   }
 }

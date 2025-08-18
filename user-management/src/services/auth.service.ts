@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { SSOService, SSOUser } from './sso.service';
+import { AuthApiService } from './auth-api.service';
+import { map, catchError } from 'rxjs/operators';
 
 export interface User {
   userId: string;
@@ -20,6 +22,7 @@ export interface User {
 export class AuthService {
   private router = inject(Router);
   private ssoService = inject(SSOService);
+  private authApiService = inject(AuthApiService);
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
   private currentUserSubject = new BehaviorSubject<User | null>(this.getCurrentUser());
@@ -36,7 +39,7 @@ export class AuthService {
   }
 
   private hasToken(): boolean {
-    return localStorage.getItem('isAuthenticated') === 'true';
+    return localStorage.getItem('isAuthenticated') === 'true' || this.authApiService.isAuthenticated();
   }
 
   private getCurrentUser(): User | null {
@@ -53,43 +56,40 @@ export class AuthService {
   }
 
   login(userId: string, password: string): Observable<boolean> {
-    return new Observable(observer => {
-      // Simulate API call
-      setTimeout(() => {
-        if (userId && password) {
+    return this.authApiService.login({ userName: userId, password: password }).pipe(
+      map(response => {
+        if (response.isSuccess && response.value) {
+          // Create user object from successful login
           const user: User = {
             userId: userId,
-            name: 'John Doe',
-            email: 'john@example.com',
-            phone: '+1 (555) 123-4567',
-            location: 'New York, NY',
-            role: 'Administrator',
+            name: userId, // Use userId as name for now
+            email: userId.includes('@') ? userId : `${userId}@example.com`,
+            role: 'User',
             status: 'Active',
-            joinDate: new Date('2023-01-15')
+            joinDate: new Date()
           };
 
           // Store authentication data
           localStorage.setItem('isAuthenticated', 'true');
           localStorage.setItem('userInfo', JSON.stringify(user));
-          localStorage.setItem('authMethod', 'traditional');
-
-          // Store default password for demo purposes
-          if (!localStorage.getItem('userPassword')) {
-            localStorage.setItem('userPassword', 'admin123');
-          }
+          localStorage.setItem('authMethod', 'api');
 
           // Update subjects
           this.isAuthenticatedSubject.next(true);
           this.currentUserSubject.next(user);
 
-          observer.next(true);
-          observer.complete();
-        } else {
+          return true;
+        }
+        return false;
+      }),
+      catchError(error => {
+        console.error('Login failed:', error);
+        return new Observable<boolean>(observer => {
           observer.next(false);
           observer.complete();
-        }
-      }, 1000);
-    });
+        });
+      })
+    );
   }
 
   logout(): void {
@@ -98,6 +98,9 @@ export class AuthService {
     localStorage.removeItem('userInfo');
     localStorage.removeItem('authMethod');
     localStorage.removeItem('userPassword');
+    
+    // Clear API tokens
+    this.authApiService.logout();
     
     // Clear SSO data if present
     this.ssoService.logoutSSO();
@@ -111,7 +114,7 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return this.isAuthenticatedSubject.value;
+    return this.isAuthenticatedSubject.value || this.authApiService.isAuthenticated();
   }
 
   getCurrentUserValue(): User | null {

@@ -2,8 +2,11 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LucideAngularModule, User, Eye, EyeOff } from 'lucide-angular';
+import { LucideAngularModule, User, Eye, EyeOff, Shield } from 'lucide-angular';
 import { AuthService } from '../../services/auth.service';
+import { AuthApiService } from '../../services/auth-api.service';
+import { SSOService } from '../../services/sso.service';
+import { appConfig } from '../../config/app.config';
 
 @Component({
   selector: 'app-login',
@@ -108,6 +111,30 @@ import { AuthService } from '../../services/auth.service';
               </button>
             </div>
 
+            <!-- OR Divider (only show if SSO is enabled) -->
+            <div *ngIf="isSSOEnabled" class="relative">
+              <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-gray-300"></div>
+              </div>
+              <div class="relative flex justify-center text-sm">
+                <span class="px-2 bg-white text-gray-500">OR</span>
+              </div>
+            </div>
+
+            <!-- SSO Login Button (only show if SSO is enabled) -->
+            <div *ngIf="isSSOEnabled">
+              <button
+                type="button"
+                (click)="loginWithSSO()"
+                [disabled]="isLoading"
+                class="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <lucide-angular [img]="shieldIcon" class="h-5 w-5 mr-2"></lucide-angular>
+                <span *ngIf="!isLoading">Sign in with Keycloak SSO</span>
+                <span *ngIf="isLoading">Redirecting...</span>
+              </button>
+            </div>
+
             <!-- Error Message -->
             <div *ngIf="errorMessage" class="text-red-600 text-sm text-center">
               {{ errorMessage }}
@@ -139,13 +166,21 @@ export class LoginComponent implements OnInit {
   showPassword = false;
   isLoading = false;
   errorMessage = '';
+  
+  // Check if SSO is enabled
+  get isSSOEnabled(): boolean {
+    return appConfig.features.enableKeycloak;
+  }
 
   userIcon = User;
   eyeIcon = Eye;
   eyeOffIcon = EyeOff;
+  shieldIcon = Shield;
 
   private router = inject(Router);
   private authService = inject(AuthService);
+  private authApiService = inject(AuthApiService);
+  private ssoService = inject(SSOService);
 
   // eslint-disable-next-line @angular-eslint/no-empty-lifecycle-method
   ngOnInit(): void {
@@ -165,18 +200,45 @@ export class LoginComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
+    // Use AuthService which now handles API authentication
     this.authService.login(this.credentials.userId, this.credentials.password)
       .subscribe({
         next: (success) => {
           if (success) {
+            console.log('Login successful');
             this.router.navigate(['/dashboard']);
           } else {
             this.errorMessage = 'Invalid credentials. Please try again.';
           }
           this.isLoading = false;
         },
-        error: () => {
-          this.errorMessage = 'Login failed. Please try again.';
+        error: (error) => {
+          console.error('Login failed:', error);
+          this.errorMessage = error?.message || 'Login failed. Please try again.';
+          this.isLoading = false;
+        }
+      });
+  }
+
+  loginWithSSO(): void {
+    if (!this.isSSOEnabled) {
+      this.errorMessage = 'SSO is currently disabled.';
+      return;
+    }
+    
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    this.ssoService.loginWithSSO('keycloak')
+      .subscribe({
+        next: (user) => {
+          console.log('SSO Login successful:', user);
+          this.router.navigate(['/dashboard']);
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('SSO Login failed:', error);
+          this.errorMessage = 'SSO login failed. Please try again.';
           this.isLoading = false;
         }
       });
