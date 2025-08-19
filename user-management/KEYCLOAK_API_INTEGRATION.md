@@ -11,7 +11,7 @@ Update the configuration in `src/config/app.config.ts`:
 ```typescript
 export const developmentConfig: AppConfig = {
   api: {
-    baseUrl: 'http://10.11.201.80:8080/api', // Your API URL
+    baseUrl: 'http://10.11.201.69:8007/api', // Your API URL
     timeout: 30000,
     retries: 3
   },

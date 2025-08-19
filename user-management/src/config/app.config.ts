@@ -23,7 +23,7 @@ export interface AppConfig {
 // Development Configuration
 export const developmentConfig: AppConfig = {
   api: {
-    baseUrl: 'http://10.11.201.80:8080/api', // Your API base URL
+    baseUrl: 'http://10.11.201.69:8007/api', // Your API base URL
     timeout: 30000,
     retries: 3
   },

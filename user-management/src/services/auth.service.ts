@@ -56,6 +56,7 @@ export class AuthService {
   }
 
   login(userId: string, password: string): Observable<boolean> {
+    // Map UI's userId to API's userName
     return this.authApiService.login({ userName: userId, password: password }).pipe(
       map(response => {
         if (response.isSuccess && response.value) {

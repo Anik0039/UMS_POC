@@ -46,99 +46,44 @@ export class AuthApiService {
    * @returns Observable with login response
    */
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    // Use Keycloak token endpoint since the server is actually Keycloak
-    const keycloakBaseUrl = this.baseUrl.replace('/api', '');
-    const loginUrl = `${keycloakBaseUrl}/realms/era-platform/protocol/openid-connect/token`;
-    
+    const loginUrl = `${this.baseUrl}/auth/login`;
     const headers = new HttpHeaders({
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
       'Accept': 'application/json'
     });
-
-    // Keycloak expects form-encoded data
-    const body = `grant_type=password&username=${encodeURIComponent(credentials.userName)}&password=${encodeURIComponent(credentials.password)}&client_id=ums-web`;
-    
-    console.log('🔐 Keycloak login attempt:', {
-      url: loginUrl,
-      username: credentials.userName,
-      clientId: 'ums-web'
-    });
-
-    return this.http.post<any>(
-      loginUrl,
-      body,
-      { headers }
-    ).pipe(
-      map(keycloakResponse => {
-        console.log('✅ Keycloak response:', keycloakResponse);
-        
-        // Transform Keycloak response to match our LoginResponse interface
-        if (keycloakResponse.access_token) {
-          const transformedResponse: LoginResponse = {
-            isSuccess: true,
+    return this.http.post<any>(loginUrl, credentials, { headers }).pipe(
+      map((response) => {
+        // Expecting response in the format you provided
+        if (response && response.isSuccess && response.value && response.value.access_token) {
+          const loginResponse: LoginResponse = {
+            isSuccess: response.isSuccess,
             value: {
-              access_token: keycloakResponse.access_token,
-              refresh_token: keycloakResponse.refresh_token || '',
-              id_token: keycloakResponse.id_token || '',
-              expires_in: keycloakResponse.expires_in || 3600,
-              refresh_expires_in: keycloakResponse.refresh_expires_in || 1800,
-              token_type: keycloakResponse.token_type || 'Bearer',
-              scope: keycloakResponse.scope || ''
+              access_token: response.value.access_token,
+              refresh_token: response.value.refresh_token || '',
+              id_token: response.value.id_token || '',
+              expires_in: response.value.expires_in || 3600,
+              refresh_expires_in: response.value.refresh_expires_in || 1800,
+              token_type: response.value.token_type || 'Bearer',
+              scope: response.value.scope || ''
             },
-            errorMessage: null,
-            totalRecord: 1
+            errorMessage: response.errorMessage || null,
+            totalRecord: response.totalRecord || 1
           };
-          
-          // Store tokens in localStorage for later use
-          this.storeTokens(transformedResponse.value);
-          return transformedResponse;
+          this.storeTokens(loginResponse.value);
+          return loginResponse;
         } else {
-          throw new Error('Invalid credentials or login failed');
+          throw new Error(response?.errorMessage || 'Invalid credentials or login failed');
         }
       }),
       catchError(error => {
-        console.error('❌ Keycloak login error:', {
-          status: error.status,
-          statusText: error.statusText,
-          message: error.message,
-          error: error.error,
-          url: loginUrl
-        });
-        
-        // Fallback: If Keycloak fails and credentials match test user, create mock response
-        if (credentials.userName === 'zidan' && credentials.password === '1234') {
-          console.log('🔄 Keycloak failed, using fallback authentication for test user');
-          const mockResponse: LoginResponse = {
-            isSuccess: true,
-            value: {
-              access_token: 'mock_access_token_' + Date.now(),
-              refresh_token: 'mock_refresh_token_' + Date.now(),
-              id_token: 'mock_id_token_' + Date.now(),
-              expires_in: 3600,
-              refresh_expires_in: 1800,
-              token_type: 'Bearer',
-              scope: 'openid profile email'
-            },
-            errorMessage: null,
-            totalRecord: 1
-          };
-          
-          this.storeTokens(mockResponse.value);
-          return new Observable<LoginResponse>(observer => {
-            observer.next(mockResponse);
-            observer.complete();
-          });
-        }
-        
         let errorMessage = 'Login failed';
         if (error.status === 401) {
           errorMessage = 'Invalid username or password';
         } else if (error.status === 400) {
-          errorMessage = 'Invalid request format or user not found in Keycloak';
-        } else if (error.error && error.error.error_description) {
-          errorMessage = error.error.error_description;
+          errorMessage = 'Invalid request format or user not found';
+        } else if (error.error && error.error.errorMessage) {
+          errorMessage = error.error.errorMessage;
         }
-        
         return throwError(() => new Error(errorMessage));
       })
     );
