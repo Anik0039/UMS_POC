@@ -13,6 +13,7 @@ export interface ApiUser {
   firstName: string;
   middleName: string;
   lastName: string;
+  fullName: string;
   dateOfBirth: string;
   contactNo: string;
   email: string;

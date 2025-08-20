@@ -20,6 +20,6 @@ export const keycloakInitOptions = {
 // Alternative initialization options for troubleshooting
 export const keycloakInitOptionsAlternative = {
   onLoad: 'login-required' as const,
-  checkLoginIframe: false,
+  checkLoginIframe: true,
   enableLogging: true
 };

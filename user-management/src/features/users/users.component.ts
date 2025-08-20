@@ -193,7 +193,7 @@ export interface User {
                 <th class="h-12 px-4 text-left align-middle font-medium">Address</th>
                 <!-- <th class="h-12 px-4 text-left align-middle font-medium">Role</th> -->
                 <th class="h-12 px-4 text-left align-middle font-medium">Status</th>
-                <th class="h-12 px-4 text-left align-middle font-medium">Joined</th>
+                <th class="h-12 px-4 text-left align-middle font-medium">D.O.B</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">Actions</th>
               </tr>
             </thead>
@@ -597,16 +597,16 @@ export class UsersComponent implements OnInit {
   transformApiUsers(apiUsers: ApiUser[]): User[] {
     return apiUsers.map(apiUser => ({
       picture: apiUser.picture || '',
-      userId: apiUser.userName,
-      firstName: apiUser.firstName,
-      middleName: apiUser.middleName,
-      lastName: apiUser.lastName,
-      dateOfBirth: apiUser.dateOfBirth,
-      contactNo: apiUser.contactNo,
-      email: apiUser.email,
-      address: apiUser.address,
+      userId: apiUser.id?.toString() || apiUser.userName || '',
+      firstName: apiUser.firstName || '',
+      middleName: apiUser.middleName || '',
+      lastName: apiUser.lastName || '',
+      dateOfBirth: this.formatDate(apiUser.dateOfBirth),
+      contactNo: apiUser.contactNo || '',
+      email: apiUser.email || '',
+      address: apiUser.address || '',
       initials: this.generateInitials(apiUser.firstName, apiUser.middleName, apiUser.lastName),
-      name: `${apiUser.firstName} ${apiUser.middleName ? apiUser.middleName + ' ' : ''}${apiUser.lastName}`.trim(),
+      name: apiUser.fullName || `${apiUser.firstName} ${apiUser.middleName ? apiUser.middleName + ' ' : ''}${apiUser.lastName}`.trim(),
       role: 'User', // Default role since API doesn't provide this
       status: apiUser.status ? 'Active' : 'Inactive',
       joinedDate: this.formatDate(apiUser.dateOfBirth)
