@@ -63,6 +63,15 @@ export interface UserQueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface UserActivity {
+  id: string;
+  userId: string;
+  action: string;
+  timestamp: string;
+  details?: string;
+  ipAddress?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -76,8 +85,8 @@ export class UserApiService {
 
   // Get users from the specific API endpoint with authentication
   getApiUsers(page: number = 1, pageSize: number = 10): Observable<ApiUsersResponse> {
-    // Use the baseUrl directly since it already includes /api
-    const url = `${this.baseUrl}/users?Page=${page}&PageSize=${pageSize}`;
+    // Use the baseUrl with /api path as requested
+    const url = `${this.baseUrl}/api/users?Page=${page}&PageSize=${pageSize}`;
     
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
@@ -207,10 +216,10 @@ export class UserApiService {
   }
 
   // Import users
-  importUsers(file: File): Observable<{ imported: number; errors: any[] }> {
+  importUsers(file: File): Observable<{ imported: number; errors: string[] }> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.apiService.post<{ imported: number; errors: any[] }>('/users/import', formData);
+    return this.apiService.post<{ imported: number; errors: string[] }>('/users/import', formData);
   }
 
   // Get user statistics
@@ -243,7 +252,7 @@ export class UserApiService {
     from?: string;
     to?: string;
   }): Observable<{
-    activities: any[];
+    activities: UserActivity[];
     total: number;
   }> {
     return this.apiService.get(`/users/${userId}/activity`, params);

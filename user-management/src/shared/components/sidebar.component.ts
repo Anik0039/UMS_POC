@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule, Home, Users, Settings, BarChart3, FileText, LogOut, LucideIconData } from 'lucide-angular';
 import { UserCountService } from '../../services/user-count.service';
+import { AuthService, User } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
+import { Router } from '@angular/router';
 
 export interface SidebarItem {
   title: string;
@@ -59,11 +61,11 @@ export interface SidebarItem {
       <div class="border-t p-4">
         <div class="flex items-center space-x-3 rounded-lg px-3 py-2">
           <div class="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-            <span class="text-sm font-medium">JD</span>
+            <span class="text-sm font-medium">{{ currentUser?.name ? getInitials(currentUser?.name) : 'U' }}</span>
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium truncate">John Doe</p>
-            <p class="text-xs text-muted-foreground truncate">john&#64;example.com</p>
+            <p class="text-sm font-medium truncate">{{ currentUser?.name || 'User' }}</p>
+            <p class="text-xs text-muted-foreground truncate">{{ currentUser?.email || 'No email' }}</p>
           </div>
         </div>
         <button 
@@ -94,9 +96,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Output() toggleSidebarEvent = new EventEmitter<void>();
 
   private userCountService = inject(UserCountService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
   private userCountSubscription?: Subscription;
+  private userSubscription?: Subscription;
+  
   logOutIcon = LogOut;
   userCount = 0;
+  currentUser: User | null = null;
 
   navigationItems: SidebarItem[] = [
     {
@@ -136,11 +143,19 @@ export class SidebarComponent implements OnInit, OnDestroy {
         usersItem.badge = count.toString();
       }
     });
+    
+    // Subscribe to current user
+    this.userSubscription = this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
   }
 
   ngOnDestroy() {
     if (this.userCountSubscription) {
       this.userCountSubscription.unsubscribe();
+    }
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
     }
   }
 
@@ -153,7 +168,17 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   onLogout() {
-    // Implement logout logic here
-    console.log('Logout clicked');
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
+  
+  getInitials(name: string | undefined): string {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   }
 }

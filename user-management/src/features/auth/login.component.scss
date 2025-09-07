@@ -3,6 +3,56 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+// Card flip animation styles
+.card-container {
+  position: relative;
+  width: 100%;
+  height: auto;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card-container.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: relative;
+  width: 100%;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.card-front {
+  transform: rotateY(0deg);
+}
+
+.card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotateY(180deg);
+  min-height: 100%;
+}
+
+// Ensure both faces have consistent styling
+.card-face {
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+// Smooth transitions for better UX
+.card-container:hover {
+  transform-style: preserve-3d;
+}
+
+// Add subtle shadow effects during flip
+.card-container.flipped .card-back {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
 // Custom animations
 @keyframes fadeIn {
   from {

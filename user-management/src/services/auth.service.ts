@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Router } from '@angular/router';
-import { SSOService, SSOUser } from './sso.service';
+import { SSOService,  } from './sso.service';
 import { AuthApiService } from './auth-api.service';
 import { map, catchError } from 'rxjs/operators';
 
@@ -94,24 +94,41 @@ export class AuthService {
   }
 
   logout(): void {
-    // Clear authentication data
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('authMethod');
-    localStorage.removeItem('userPassword');
+    const authMethod = this.getAuthMethod();
+    const currentUser = this.getCurrentUserValue();
     
-    // Clear API tokens
-    this.authApiService.logout();
-    
-    // Clear SSO data if present
-    this.ssoService.logoutSSO();
-
-    // Update subjects
-    this.isAuthenticatedSubject.next(false);
-    this.currentUserSubject.next(null);
-
-    // Navigate to login
-    this.router.navigate(['/login']);
+    if (authMethod === 'sso') {
+      // SSO logout
+      try {
+        this.ssoService.logoutSSO();
+        this.clearAuthData();
+        this.router.navigate(['/login']);
+      } catch (error) {
+        console.error('SSO logout failed:', error);
+        // Fallback: clear local data and redirect
+        this.clearAuthData();
+        this.router.navigate(['/login']);
+      }
+    } else if (authMethod === 'api' && currentUser?.userId) {
+      // API logout
+      this.authApiService.logoutFromAPI(currentUser.userId).subscribe({
+        next: (response) => {
+          console.log('Logout successful:', response);
+          this.clearAuthData();
+          this.router.navigate(['/login']);
+        },
+        error: (error) => {
+          console.error('API logout failed:', error);
+          // Even if API fails, clear local data and redirect
+          this.clearAuthData();
+          this.router.navigate(['/login']);
+        }
+      });
+    } else {
+      // Traditional logout or fallback
+      this.clearAuthData();
+      this.router.navigate(['/login']);
+    }
   }
 
   isLoggedIn(): boolean {
@@ -163,10 +180,19 @@ export class AuthService {
   }
 
   private clearAuthData(): void {
-    // Clear existing authentication data on app start
+    // Clear existing authentication data
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userInfo');
     localStorage.removeItem('userPassword');
+    localStorage.removeItem('authMethod');
+    
+    // Clear SSO specific data
+    localStorage.removeItem('sso_provider');
+    localStorage.removeItem('sso_user');
+    localStorage.removeItem('sso_token');
+    
+    // Clear API tokens
+    this.authApiService.logout();
     
     // Clear SSO data as well
     this.ssoService.logoutSSO();
@@ -179,28 +205,76 @@ export class AuthService {
   loginWithSSO(providerId: string): Observable<boolean> {
     return new Observable(observer => {
       this.ssoService.loginWithSSO(providerId).subscribe({
-        next: (ssoUser: SSOUser) => {
-          // Convert SSO user to our User format
-          const user: User = {
-            userId: ssoUser.id,
-            name: ssoUser.name,
-            email: ssoUser.email,
-            role: 'User',
-            status: 'Active',
-            joinDate: new Date()
-          };
+        next: (response: { success: boolean; user?: { id?: string; userId?: string; name: string; email: string; role?: string; status?: string; }; redirected?: boolean; }) => {
+          if (response.success && response.user) {
+            // Convert SSO user to our User format
+            const user: User = {
+              userId: response.user.id || response.user.userId || '',
+              name: response.user.name,
+              email: response.user.email,
+              role: response.user.role || 'User',
+              status: response.user.status || 'Active',
+              joinDate: new Date()
+            };
 
-          // Store authentication data
-          localStorage.setItem('isAuthenticated', 'true');
-          localStorage.setItem('userInfo', JSON.stringify(user));
-          localStorage.setItem('authMethod', 'sso');
+            // Store authentication data
+            localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userInfo', JSON.stringify(user));
+            localStorage.setItem('authMethod', 'sso');
 
-          // Update subjects
-          this.isAuthenticatedSubject.next(true);
-          this.currentUserSubject.next(user);
+            // Update subjects
+            this.isAuthenticatedSubject.next(true);
+            this.currentUserSubject.next(user);
 
-          observer.next(true);
+            observer.next(true);
+            observer.complete();
+          } else if (response.redirected) {
+            // For API SSO, user will be redirected
+            observer.next(true);
+            observer.complete();
+          } else {
+            observer.next(false);
+            observer.complete();
+          }
+        },
+        error: () => {
+          observer.next(false);
           observer.complete();
+        }
+      });
+    });
+  }
+
+  validateSSOToken(token: string): Observable<boolean> {
+    return new Observable(observer => {
+      this.ssoService.validateSSOToken(token).subscribe({
+        next: (response: { success: boolean; user?: { id?: string; userId?: string; name: string; email: string; role?: string; status?: string; }}) => {
+          if (response.success && response.user) {
+            // Convert SSO user to our User format
+            const user: User = {
+              userId: response.user.id || response.user.userId || '',
+              name: response.user.name,
+              email: response.user.email,
+              role: response.user.role || 'User',
+              status: response.user.status || 'Active',
+              joinDate: new Date()
+            };
+
+            // Store authentication data
+            localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userInfo', JSON.stringify(user));
+            localStorage.setItem('authMethod', 'sso');
+
+            // Update subjects
+            this.isAuthenticatedSubject.next(true);
+            this.currentUserSubject.next(user);
+
+            observer.next(true);
+            observer.complete();
+          } else {
+            observer.next(false);
+            observer.complete();
+          }
         },
         error: () => {
           observer.next(false);

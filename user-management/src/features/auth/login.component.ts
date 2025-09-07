@@ -6,7 +6,6 @@ import { LucideAngularModule, User, Eye, EyeOff, Shield } from 'lucide-angular';
 import { AuthService } from '../../services/auth.service';
 import { AuthApiService } from '../../services/auth-api.service';
 import { SSOService } from '../../services/sso.service';
-import { appConfig } from '../../config/app.config';
 
 @Component({
   selector: 'app-login',
@@ -15,8 +14,10 @@ import { appConfig } from '../../config/app.config';
   template: `
     <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-md w-full space-y-8">
-        <!-- Login Card -->
-        <div class="bg-white rounded-lg shadow-lg p-8">
+        <!-- Card Container with Flip Animation -->
+        <div class="card-container" [class.flipped]="showPasswordSetup">
+          <!-- Front Face - Login Form -->
+          <div class="card-face card-front bg-white rounded-lg shadow-lg p-8">
           <!-- Logo and Header -->
           <div class="text-center mb-8">
             <div class="flex items-center justify-center mb-4">
@@ -92,7 +93,9 @@ import { appConfig } from '../../config/app.config';
                 </a>
               </div>
             </div>
-
+            
+            <!-- New User button has been completely removed as requested -->
+            
             <!-- Sign In Button -->
             <div>
               <button
@@ -121,16 +124,18 @@ import { appConfig } from '../../config/app.config';
               </div>
             </div>
 
-            <!-- SSO Login Button (only show if SSO is enabled) -->
-            <div *ngIf="isSSOEnabled">
+            <!-- SSO Login Buttons (only show if SSO is enabled) -->
+            <div *ngIf="isSSOEnabled" class="space-y-3">
               <button
+                *ngFor="let provider of ssoProviders"
                 type="button"
-                (click)="loginWithSSO()"
+                (click)="loginWithSSO(provider.id)"
                 [disabled]="isLoading"
                 class="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                [style.border-color]="provider.color"
               >
-                <lucide-angular [img]="shieldIcon" class="h-5 w-5 mr-2"></lucide-angular>
-                <span *ngIf="!isLoading">Sign in with Keycloak SSO</span>
+                <lucide-angular [img]="shieldIcon" class="h-5 w-5 mr-2" [style.color]="provider.color"></lucide-angular>
+                <span *ngIf="!isLoading">Sign in with {{ provider.name }}</span>
                 <span *ngIf="isLoading">Redirecting...</span>
               </button>
             </div>
@@ -140,16 +145,151 @@ import { appConfig } from '../../config/app.config';
               {{ errorMessage }}
             </div>
           </form>
-
-          <!-- Demo Credentials Info
-          <div class="mt-6 p-4 bg-blue-50 rounded-md">
-            <div class="text-sm text-blue-800">
-              <p class="font-medium mb-2">Demo Credentials:</p>
-              <p>Username: <span class="font-mono">admin</span></p>
-              <p>Password: <span class="font-mono">admin123</span></p>
-            </div>
           </div>
-          -->
+          
+          <!-- Back Face - Password Setup Interface -->
+          <div class="card-face card-back bg-white rounded-lg shadow-lg p-8">
+            <!-- Logo and Header -->
+            <div class="text-center mb-8">
+              <div class="flex items-center justify-center mb-4">
+                <img src="/Era_logo.png" alt="ERA Logo" class="h-16 w-auto mx-auto" />
+              </div>
+              <h3 class="text-xl font-bold text-gray-900 mt-6 text-center">Set New Password</h3>
+            </div>
+            
+            <form (ngSubmit)="onPasswordSetup()" class="space-y-4">
+              <!-- User ID Field -->
+              <div class="space-y-2">
+                <div class="relative">
+                  <input
+                    type="text"
+                    [(ngModel)]="passwordSetupData.userId"
+                    name="userId"
+                    placeholder="User ID"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <!-- Temporary Password Field -->
+              <div class="space-y-2">
+                <label for="temp-password" class="block text-sm font-medium text-gray-700">Temporary Password</label>
+                <div class="relative">
+                  <input
+                    id="temp-password"
+                    [type]="showTempPassword ? 'text' : 'password'"
+                    [(ngModel)]="passwordSetupData.temporaryPassword"
+                    name="temporaryPassword"
+                    placeholder="Enter temporary password from email"
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                  <button
+                    type="button"
+                    (click)="toggleTempPasswordVisibility()"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <lucide-angular 
+                      [img]="showTempPassword ? eyeOffIcon : eyeIcon" 
+                      class="h-4 w-4 text-gray-400 hover:text-gray-600"
+                    ></lucide-angular>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- New Password Field -->
+              <div class="space-y-2">
+                <label for="new-password" class="block text-sm font-medium text-gray-700">New Password</label>
+                <div class="relative">
+                  <input
+                    id="new-password"
+                    [type]="showNewPassword ? 'text' : 'password'"
+                    [(ngModel)]="passwordSetupData.newPassword"
+                    name="newPassword"
+                    placeholder="Enter new password"
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    minlength="8"
+                  />
+                  <button
+                    type="button"
+                    (click)="toggleNewPasswordVisibility()"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <lucide-angular 
+                      [img]="showNewPassword ? eyeOffIcon : eyeIcon" 
+                      class="h-4 w-4 text-gray-400 hover:text-gray-600"
+                    ></lucide-angular>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Confirm Password Field -->
+              <div class="space-y-2">
+                <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                <div class="relative">
+                  <input
+                    id="confirm-password"
+                    [type]="showConfirmPassword ? 'text' : 'password'"
+                    [(ngModel)]="passwordSetupData.confirmPassword"
+                    name="confirmPassword"
+                    placeholder="Confirm new password"
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    [class.border-red-500]="passwordSetupData.confirmPassword && !passwordsMatch()"
+                  />
+                  <button
+                    type="button"
+                    (click)="toggleConfirmPasswordVisibility()"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <lucide-angular 
+                      [img]="showConfirmPassword ? eyeOffIcon : eyeIcon" 
+                      class="h-4 w-4 text-gray-400 hover:text-gray-600"
+                    ></lucide-angular>
+                  </button>
+                </div>
+                <div *ngIf="passwordSetupData.confirmPassword && !passwordsMatch()" class="text-red-600 text-xs">
+                  Passwords do not match
+                </div>
+              </div>
+              
+              <!-- Submit Button -->
+              <div class="pt-4">
+                <button
+                  type="submit"
+                  [disabled]="!isPasswordSetupValid() || isSettingPassword"
+                  class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span *ngIf="!isSettingPassword">Set New Password</span>
+                  <span *ngIf="isSettingPassword" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Setting Password...
+                  </span>
+                </button>
+              </div>
+              
+              <!-- Password Setup Error Message -->
+              <div *ngIf="passwordSetupError" class="text-red-600 text-sm text-center">
+                {{ passwordSetupError }}
+              </div>
+              
+              <!-- Cancel Button -->
+              <div class="text-center">
+                <button
+                  type="button"
+                  (click)="togglePasswordSetup()"
+                  class="text-sm text-gray-600 hover:text-gray-800 underline"
+                >
+                  Back to Login
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -167,9 +307,27 @@ export class LoginComponent implements OnInit {
   isLoading = false;
   errorMessage = '';
   
+  // New user password setup
+  showPasswordSetup = false;
+  passwordSetupData = {
+    userId: '',
+    temporaryPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  };
+  showTempPassword = false;
+  showNewPassword = false;
+  showConfirmPassword = false;
+  passwordSetupError = '';
+  isSettingPassword = false;
+  
   // Check if SSO is enabled
   get isSSOEnabled(): boolean {
-    return appConfig.features.enableKeycloak;
+    return this.ssoProviders.length > 0;
+  }
+
+  get ssoProviders() {
+    return this.ssoService.getSSOProviders();
   }
 
   userIcon = User;
@@ -206,7 +364,7 @@ export class LoginComponent implements OnInit {
         next: (success) => {
           if (success) {
             console.log('Login successful');
-            this.router.navigate(['/dashboard']);
+            this.router.navigate(['/services']);
           } else {
             this.errorMessage = 'Invalid credentials. Please try again.';
           }
@@ -220,7 +378,7 @@ export class LoginComponent implements OnInit {
       });
   }
 
-  loginWithSSO(): void {
+  loginWithSSO(providerId: string): void {
     if (!this.isSSOEnabled) {
       this.errorMessage = 'SSO is currently disabled.';
       return;
@@ -229,11 +387,19 @@ export class LoginComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.ssoService.loginWithSSO('keycloak')
+    this.authService.loginWithSSO(providerId)
       .subscribe({
-        next: (user) => {
-          console.log('SSO Login successful:', user);
-          this.router.navigate(['/dashboard']);
+        next: (success) => {
+          if (success) {
+            console.log('SSO Login successful');
+            // For API SSO, user will be redirected, so don't navigate here
+            // For Keycloak SSO, navigation will happen after successful authentication
+            if (providerId !== 'api-sso') {
+              this.router.navigate(['/dashboard']);
+            }
+          } else {
+            this.errorMessage = 'SSO login failed. Please try again.';
+          }
           this.isLoading = false;
         },
         error: (error) => {
@@ -244,5 +410,75 @@ export class LoginComponent implements OnInit {
       });
   }
 
+  // Password setup methods
+  togglePasswordSetup(): void {
+    this.showPasswordSetup = !this.showPasswordSetup;
+    if (this.showPasswordSetup) {
+      // Clear any existing errors when opening
+      this.passwordSetupError = '';
+      this.errorMessage = '';
+    }
+  }
 
+  toggleTempPasswordVisibility(): void {
+    this.showTempPassword = !this.showTempPassword;
+  }
+
+  toggleNewPasswordVisibility(): void {
+    this.showNewPassword = !this.showNewPassword;
+  }
+
+  toggleConfirmPasswordVisibility(): void {
+    this.showConfirmPassword = !this.showConfirmPassword;
+  }
+
+  passwordsMatch(): boolean {
+    return this.passwordSetupData.newPassword === this.passwordSetupData.confirmPassword;
+  }
+
+  isPasswordSetupValid(): boolean {
+    return (
+      this.passwordSetupData.userId.trim().length > 0 &&
+      this.passwordSetupData.temporaryPassword.length > 0 &&
+      this.passwordSetupData.newPassword.length >= 8 &&
+      this.passwordSetupData.confirmPassword.length > 0 &&
+      this.passwordsMatch()
+    );
+  }
+
+  onPasswordSetup(): void {
+    if (!this.isPasswordSetupValid()) {
+      this.passwordSetupError = 'Please fill all fields correctly and ensure passwords match.';
+      return;
+    }
+
+    this.isSettingPassword = true;
+    this.passwordSetupError = '';
+
+    // Simulate API call for password setup
+    // In a real application, you would call your API service here
+    setTimeout(() => {
+      // Simulate success/failure
+      const success = Math.random() > 0.2; // 80% success rate for demo
+      
+      if (success) {
+        console.log('Password setup successful');
+        // Reset form and show success message
+        this.passwordSetupData = {
+          userId: '',
+          temporaryPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        };
+        this.showPasswordSetup = false;
+        this.errorMessage = '';
+        // You might want to show a success message or redirect
+        alert('Password set successfully! You can now login with your new password.');
+      } else {
+        this.passwordSetupError = 'Failed to set password. Please check your temporary password and try again.';
+      }
+      
+      this.isSettingPassword = false;
+    }, 2000); // Simulate network delay
+  }
 }

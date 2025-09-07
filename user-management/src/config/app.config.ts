@@ -23,11 +23,11 @@ export interface AppConfig {
 // Development Configuration
 export const developmentConfig: AppConfig = {
   api: {
-    baseUrl: 'http://10.11.201.69:8007/api', // Your API base URL
+    baseUrl: 'http://10.11.201.85:5001', // Your API base URL
     timeout: 30000,
     retries: 3
   },
-  keycloak: {
+  keycloak: { 
     url: 'http://10.11.201.80:8080', // Your Keycloak server URL
     realm: 'era-platform', // Your realm name
     clientId: 'ums-web' // Your client ID
@@ -43,7 +43,7 @@ export const developmentConfig: AppConfig = {
 // Production Configuration
 export const productionConfig: AppConfig = {
   api: {
-    baseUrl: 'http://10.11.201.80:8080/api', // Your production API URL
+    baseUrl: 'http://10.11.201.85:5001', // Your production API URL
     timeout: 30000,
     retries: 3
   },

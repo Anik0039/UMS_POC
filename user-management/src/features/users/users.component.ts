@@ -538,6 +538,9 @@ export class UsersComponent implements OnInit {
     this.loadUsers();
   }
 
+  private retryCount = 0;
+  private maxRetries = 3;
+
   loadUsers() {
     // Check authentication before making API call
     if (!this.authService.isLoggedIn()) {
@@ -561,6 +564,7 @@ export class UsersComponent implements OnInit {
 
     this.loading = true;
     this.error = null;
+    this.retryCount = 0;
     
     this.userApiService.getApiUsers(this.currentPage, this.itemsPerPage)
       .pipe(
@@ -570,10 +574,32 @@ export class UsersComponent implements OnInit {
           // Handle specific authentication errors
           if (error.status === 401) {
             this.error = 'Authentication failed. Please login again.';
+            // Clear stored authentication data on 401
+            this.authApiService.logout();
+            // Optionally redirect to login page
+            console.warn('🔐 Authentication token expired or invalid. User needs to re-login.');
           } else if (error.status === 403) {
             this.error = 'You do not have permission to view users.';
+          } else if (error.status === 404) {
+            this.error = 'Users endpoint not found. Please check the API configuration.';
+          } else if (error.status === 500) {
+            this.error = 'Server error occurred. Please try again later.';
+          } else if (error.status === 0) {
+            // Network error - attempt retry
+            if (this.retryCount < this.maxRetries) {
+              this.retryCount++;
+              console.log(`🔄 Retrying request (${this.retryCount}/${this.maxRetries})...`);
+              this.error = `Network error. Retrying... (${this.retryCount}/${this.maxRetries})`;
+              // Retry after a short delay
+              setTimeout(() => {
+                this.loadUsers();
+              }, 2000);
+              return of({ isSuccess: false, value: [], errorMessage: 'Retrying...', totalRecord: 0 });
+            } else {
+              this.error = 'Network error. Please check your connection and try again.';
+            }
           } else {
-            this.error = 'Failed to load users. Please try again.';
+            this.error = error.message || 'Failed to load users. Please try again.';
           }
           
           return of({ isSuccess: false, value: [], errorMessage: error.message, totalRecord: 0 });
@@ -607,9 +633,9 @@ export class UsersComponent implements OnInit {
       address: apiUser.address || '',
       initials: this.generateInitials(apiUser.firstName, apiUser.middleName, apiUser.lastName),
       name: apiUser.fullName || `${apiUser.firstName} ${apiUser.middleName ? apiUser.middleName + ' ' : ''}${apiUser.lastName}`.trim(),
-      role: 'User', // Default role since API doesn't provide this
-      status: apiUser.status ? 'Active' : 'Inactive',
-      joinedDate: this.formatDate(apiUser.dateOfBirth)
+      role: 'User', // Default role since API doesn't provide role field
+      status: apiUser.status ? 'Active' : 'Inactive', // Convert boolean to string
+      joinedDate: this.formatDate(apiUser.dateOfBirth) // Use dateOfBirth since createdAt is not available
     }));
   }
 

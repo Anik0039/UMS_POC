@@ -46,12 +46,12 @@ export class AuthApiService {
    * @returns Observable with login response
    */
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    const loginUrl = `${this.baseUrl}/auth/login`;
+    const loginUrl = `${this.baseUrl}/api/auth/login`;
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     });
-    return this.http.post<any>(loginUrl, credentials, { headers }).pipe(
+    return this.http.post<LoginResponse>(loginUrl, credentials, { headers }).pipe(
       map((response) => {
         // Expecting response in the format you provided
         if (response && response.isSuccess && response.value && response.value.access_token) {
@@ -173,9 +173,33 @@ export class AuthApiService {
   }
 
   /**
-   * Logout and clear stored tokens
+   * Logout using the custom API endpoint
+   * @param username - Username to logout
+   * @returns Observable with logout response
    */
-  logout(): void {
+  logoutFromAPI(username: string): Observable<ApiError | { success: boolean }> {
+    const logoutUrl = `${this.baseUrl}/api/auth/logout/${username}`;
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    });
+    
+    return this.http.post<ApiError | { success: boolean }>(logoutUrl, {}, { headers }).pipe(
+      map((response) => {
+        // Clear local tokens after successful API logout
+        this.clearTokens();
+        return response;
+      }),
+      catchError(error => {
+        // Even if API call fails, clear local tokens
+        this.clearTokens();
+        console.error('Logout API error:', error);
+        return throwError(() => new Error('Logout failed'));
+      })
+    );
+  }
+
+  private clearTokens(): void {
     localStorage.removeItem('api_access_token');
     localStorage.removeItem('api_refresh_token');
     localStorage.removeItem('api_id_token');
@@ -186,10 +210,27 @@ export class AuthApiService {
   }
 
   /**
+   * Logout and clear stored tokens
+   */
+  logout(): void {
+    this.clearTokens();
+  }
+
+  /**
    * Get token information
    * @returns Token information object
    */
-  getTokenInfo(): any {
+  getTokenInfo(): {
+    accessToken: string | null;
+    refreshToken: string | null;
+    idToken: string | null;
+    tokenType: string | null;
+    scope: string | null;
+    expiresIn: string | null;
+    expiration: string | null;
+    isAuthenticated: boolean;
+    isExpired: boolean;
+  } {
     return {
       accessToken: this.getAccessToken(),
       refreshToken: this.getRefreshToken(),
