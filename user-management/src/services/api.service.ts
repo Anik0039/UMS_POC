@@ -48,16 +48,10 @@ export class ApiService {
       'Accept': 'application/json'
     });
 
-    // Prioritize custom API authentication over Keycloak
+    // Add API authentication header if available
     const apiAuthHeader = this.authApiService.getAuthorizationHeader();
     if (apiAuthHeader) {
       headers = headers.set('Authorization', apiAuthHeader);
-    } else {
-      // Fallback to Keycloak token if available
-      const keycloakToken = this.ssoService.getAccessToken();
-      if (keycloakToken) {
-        headers = headers.set('Authorization', `Bearer ${keycloakToken}`);
-      }
     }
 
     return headers;

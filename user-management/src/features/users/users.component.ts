@@ -6,6 +6,7 @@ import { ButtonComponent } from '../../shared/components/button.component';
 import { UserApiService, ApiUser, ApiUsersResponse } from '../../services/user-api.service';
 import { AuthService } from '../../services/auth.service';
 import { AuthApiService } from '../../services/auth-api.service';
+import { UserCountService } from '../../services/user-count.service';
 import { catchError, of } from 'rxjs';
 
 export interface User {
@@ -100,6 +101,10 @@ export interface User {
                   <option value="Moderator">Moderator</option>
                   <option value="User">User</option>
                 </select>
+                <div *ngIf="validationErrors['role']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['role'] }}</span>
+                </div>
               </div>
               
               <!-- Joined Date Filter -->
@@ -240,31 +245,88 @@ export interface User {
         </div>
         
         <!-- Pagination Controls -->
-        <div class="flex items-center justify-between p-4 border-t bg-muted/30">
-          <div class="text-sm text-muted-foreground">
-            Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, totalRecords) }} of {{ totalRecords }} users
+        <div class="flex items-center justify-between p-4 border-t bg-gradient-to-r from-muted/20 to-muted/40 backdrop-blur-sm">
+          <div class="flex items-center space-x-4">
+            <div class="text-sm text-muted-foreground font-medium">
+              Showing <span class="text-foreground font-semibold">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> to <span class="text-foreground font-semibold">{{ Math.min(currentPage * itemsPerPage, totalRecords) }}</span> of <span class="text-foreground font-semibold">{{ totalRecords }}</span> users
+            </div>
+            <!-- Entries per page selector -->
+            <div class="flex items-center space-x-2">
+              <label class="text-sm text-muted-foreground font-medium" for="entriesPerPage">Show:</label>
+              <select 
+                id="entriesPerPage"
+                [(ngModel)]="itemsPerPage"
+                (change)="onEntriesPerPageChange()"
+                class="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all duration-200 hover:border-ring/50 shadow-sm"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span class="text-sm text-muted-foreground font-medium">entries</span>
+            </div>
           </div>
           <div class="flex items-center space-x-2">
             <button 
               (click)="previousPage()" 
               [disabled]="currentPage === 1"
-              class="px-3 py-1 text-sm border rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm font-medium border rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
             >
               Previous
             </button>
             
-            <button 
-              *ngFor="let page of pageNumbers" 
-              (click)="goToPage(page)"
-              [class]="'px-3 py-1 text-sm border rounded hover:bg-accent ' + (currentPage === page ? 'bg-primary text-primary-foreground' : '')"
-            >
-              {{ page }}
-            </button>
+            <div class="flex items-center space-x-1">
+              <!-- First page button -->
+              <button 
+                *ngIf="currentPage > 3 && totalPages > 5"
+                (click)="goToPage(1)"
+                class="px-3 py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
+                title="First page"
+              >
+                1
+              </button>
+              
+              <!-- Left ellipsis -->
+              <span 
+                *ngIf="currentPage > 4 && totalPages > 6"
+                class="px-2 py-2 text-sm text-muted-foreground animate-pulse"
+              >
+                ...
+              </span>
+              
+              <!-- Page numbers -->
+              <button 
+                *ngFor="let page of pageNumbers" 
+                (click)="goToPage(page)"
+                [class]="'px-3 py-2 text-sm font-medium border rounded-md transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95 ' + (currentPage === page ? 'bg-primary text-primary-foreground border-primary shadow-lg scale-105' : 'border-input hover:bg-accent')"
+              >
+                {{ page }}
+              </button>
+              
+              <!-- Right ellipsis -->
+              <span 
+                *ngIf="currentPage < totalPages - 3 && totalPages > 6"
+                class="px-2 py-2 text-sm text-muted-foreground animate-pulse"
+              >
+                ...
+              </span>
+              
+              <!-- Last page button -->
+              <button 
+                *ngIf="currentPage < totalPages - 2 && totalPages > 5"
+                (click)="goToPage(totalPages)"
+                class="px-3 py-2 text-sm font-medium border border-input rounded-md hover:bg-accent transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
+                [title]="'Last page (' + totalPages + ')'"
+              >
+                {{ totalPages }}
+              </button>
+            </div>
             
             <button 
               (click)="nextPage()" 
               [disabled]="currentPage === totalPages"
-              class="px-3 py-1 text-sm border rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 text-sm font-medium border rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
             >
               Next
             </button>
@@ -288,6 +350,15 @@ export interface User {
 
           <!-- Modal Body -->
           <div class="p-6 space-y-6">
+            <!-- General Error Summary -->
+            <div *ngIf="hasAnyValidationErrors()" class="rounded-md border border-destructive bg-destructive/10 p-4">
+              <div class="flex items-center space-x-2">
+                <span class="text-destructive font-medium">⚠ Please fix the following errors:</span>
+              </div>
+              <ul class="mt-2 text-sm text-destructive list-disc list-inside">
+                <li *ngFor="let error of getValidationErrorsList()">{{ error }}</li>
+              </ul>
+            </div>
             <!-- Profile Picture Section -->
             <div class="flex flex-col items-center space-y-4">
               <div class="text-center">
@@ -316,9 +387,14 @@ export interface User {
                   id="userId"
                   type="text"
                   [(ngModel)]="newUser.userId"
+                  (input)="onFieldChange('userId')"
                   placeholder="e.g., @jeffsdeposit"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['userId'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['userId']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['userId'] }}</span>
+                </div>
               </div>
 
               <!-- First Name -->
@@ -328,9 +404,14 @@ export interface User {
                   id="firstName"
                   type="text"
                   [(ngModel)]="newUser.firstName"
+                  (input)="onFieldChange('firstName')"
                   placeholder="e.g., John"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['firstName'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['firstName']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['firstName'] }}</span>
+                </div>
               </div>
 
               <!-- Middle Name -->
@@ -352,9 +433,14 @@ export interface User {
                   id="lastName"
                   type="text"
                   [(ngModel)]="newUser.lastName"
+                  (input)="onFieldChange('lastName')"
                   placeholder="e.g., Doe"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['lastName'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['lastName']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['lastName'] }}</span>
+                </div>
               </div>
 
               <!-- Date of Birth -->
@@ -375,9 +461,14 @@ export interface User {
                   id="contactNo"
                   type="text"
                   [(ngModel)]="newUser.contactNo"
+                  (input)="onFieldChange('contactNo')"
                   placeholder="e.g., +1234567890"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['contactNo'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['contactNo']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['contactNo'] }}</span>
+                </div>
               </div>
 
               <!-- Email Address -->
@@ -387,9 +478,14 @@ export interface User {
                   id="email"
                   type="email"
                   [(ngModel)]="newUser.email"
+                  (input)="onFieldChange('email')"
                   placeholder="e.g., user@example.com"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['email'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['email']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['email'] }}</span>
+                </div>
               </div>
 
               <!-- Address -->
@@ -411,9 +507,14 @@ export interface User {
                   id="password"
                   type="password"
                   [(ngModel)]="newUser.password"
+                  (input)="onFieldChange('password')"
                   placeholder="Enter a secure password"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['password'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['password']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['password'] }}</span>
+                </div>
               </div>
 
               <!-- Role -->
@@ -422,7 +523,8 @@ export interface User {
                 <select
                   id="role"
                   [(ngModel)]="newUser.role"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  (change)="onFieldChange('role')"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['role'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 >
                   <option value="">Select a role</option>
                   <option value="Admin">Admin</option>
@@ -472,7 +574,8 @@ export interface User {
             </button>
             <button
               (click)="saveUser()"
-              class="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+              [disabled]="hasAnyValidationErrors()"
+              [class]="'px-4 py-2 text-sm font-medium rounded-md transition-colors ' + (hasAnyValidationErrors() ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50' : 'bg-primary text-primary-foreground hover:bg-primary/90')"
             >
               Create User
             </button>
@@ -487,6 +590,7 @@ export class UsersComponent implements OnInit {
   private userApiService = inject(UserApiService);
   private authService = inject(AuthService);
   private authApiService = inject(AuthApiService);
+  private userCountService = inject(UserCountService);
   
   plusIcon = Plus;
   searchIcon = Search;
@@ -503,6 +607,21 @@ export class UsersComponent implements OnInit {
   showUserForm = false;
   loading = false;
   error: string | null = null;
+  
+  // Validation error tracking
+  validationErrors: { [key: string]: string } = {};
+  
+  // Email validation regex
+  private emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
+  // Password validation regex (at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
+  private passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  
+  // Phone validation regex (basic format)
+  private phoneRegex = /^\+?[1-9]\d{0,15}$/;
+  
+  // User ID validation regex (@username format)
+  private userIdRegex = /^@[a-zA-Z0-9_]{3,20}$/;
   
   // Search and filter properties
   searchTerm = '';
@@ -612,6 +731,7 @@ export class UsersComponent implements OnInit {
           console.log('✅ Users loaded successfully:', response);
           this.users = this.transformApiUsers(response.value);
           this.totalRecords = response.totalRecord;
+          this.userCountService.updateUserCount(this.totalRecords);
           this.applyFilters();
         } else {
           this.error = response.errorMessage || 'Failed to load users';
@@ -851,10 +971,21 @@ export class UsersComponent implements OnInit {
 
   get pageNumbers(): number[] {
     const pages = [];
-    for (let i = 1; i <= this.totalPages; i++) {
+    const maxVisiblePages = 5;
+    const startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(this.totalPages, startPage + maxVisiblePages - 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
     return pages;
+  }
+
+  onEntriesPerPageChange() {
+    // Reset to first page when changing entries per page
+    this.currentPage = 1;
+    this.updatePagination();
+    this.loadUsers();
   }
 
   getRoleBadgeClass(role: string): string {
@@ -890,7 +1021,7 @@ export class UsersComponent implements OnInit {
 
   closeUserForm(): void {
     this.showUserForm = false;
-    this.resetForm();
+    this.resetUserForm();
   }
 
   resetForm(): void {
@@ -910,6 +1041,26 @@ export class UsersComponent implements OnInit {
     };
   }
 
+  resetUserForm(): void {
+    // Reset form
+    this.newUser = {
+      picture: '',
+      userId: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      dateOfBirth: '',
+      contactNo: '',
+      email: '',
+      address: '',
+      password: '',
+      role: '',
+      status: 'Active'
+    };
+    this.error = null;
+    this.validationErrors = {};
+  }
+
   onPictureSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
@@ -924,50 +1075,201 @@ export class UsersComponent implements OnInit {
   }
 
   saveUser(): void {
+    // Validate all fields before submission
+    this.validateAllFields();
+    
+    if (this.hasAnyValidationErrors()) {
+      this.error = 'Please fix the validation errors before submitting the form.';
+      return;
+    }
+    
     if (this.isFormValid()) {
-      // Generate initials from firstName, middleName, lastName
-      const initials = [this.newUser.firstName, this.newUser.middleName, this.newUser.lastName]
-        .filter(Boolean)
-        .map(word => word.charAt(0).toUpperCase())
-        .join('')
-        .substring(0, 2);
+      this.loading = true;
+      this.error = null;
 
-      // Add new user to the users array
-      const newUserEntry = {
-        picture: this.newUser.picture,
-        userId: this.newUser.userId,
+      // Prepare user data for API call
+      const userData = {
+        userName: this.newUser.userId,
         firstName: this.newUser.firstName,
-        middleName: this.newUser.middleName,
+        middleName: this.newUser.middleName || '',
         lastName: this.newUser.lastName,
         dateOfBirth: this.newUser.dateOfBirth,
         contactNo: this.newUser.contactNo,
         email: this.newUser.email,
         address: this.newUser.address,
-        initials: initials,
-        name: `${this.newUser.firstName} ${this.newUser.middleName ? this.newUser.middleName + ' ' : ''}${this.newUser.lastName}`.trim(),
-        role: this.newUser.role,
-        status: this.newUser.status,
-        joinedDate: new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })
+        picture: this.newUser.picture || '',
+        password: this.newUser.password,
+        confirmPassword: this.newUser.password
       };
 
-      this.users.unshift(newUserEntry); // Add to beginning of array
-      this.applyFilters(); // Reapply filters to include new user
-      this.updatePagination(); // Update pagination after adding user
-      this.closeUserForm();
+      // Call API to create user
+      this.userApiService.createApiUser({
+        ...userData,
+        name: `${userData.firstName} ${userData.middleName ? userData.middleName + ' ' : ''}${userData.lastName}`.trim()
+      }).pipe(
+        catchError(error => {
+          console.error('Error creating user:', error);
+          this.error = error.message || 'Failed to create user. Please try again.';
+          this.loading = false;
+          return of(null);
+        })
+      ).subscribe(response => {
+        this.loading = false;
+        
+        if (response) {
+          // Generate initials from firstName, middleName, lastName
+          const initials = [this.newUser.firstName, this.newUser.middleName, this.newUser.lastName]
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase())
+            .join('')
+            .substring(0, 2);
+
+          // Add new user to the users array with API response data
+          const newUserEntry = {
+            picture: response.picture || this.newUser.picture,
+            userId: response.userName || this.newUser.userId,
+            firstName: response.firstName,
+            middleName: response.middleName,
+            lastName: response.lastName,
+            dateOfBirth: response.dateOfBirth,
+            contactNo: response.contactNo,
+            email: response.email,
+            address: response.address,
+            initials: initials,
+            name: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
+            role: this.newUser.role,
+            status: response.status ? 'Active' : 'Inactive',
+            joinedDate: new Date().toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })
+          };
+
+          this.users.unshift(newUserEntry); // Add to beginning of array
+          this.totalRecords++; // Increment total count
+          this.userCountService.updateUserCount(this.totalRecords); // Update sidebar count
+          this.applyFilters(); // Reapply filters to include new user
+          this.updatePagination(); // Update pagination after adding user
+          this.closeUserForm();
+          
+          // Reset form
+          this.resetUserForm();
+        }
+      });
     }
   }
 
+  // Validation methods
+  validateField(fieldName: string, value: string): string | null {
+    switch (fieldName) {
+      case 'userId':
+        if (!value.trim()) return 'User ID is required';
+        if (!this.userIdRegex.test(value)) return 'User ID must start with @ and contain 3-20 alphanumeric characters or underscores';
+        return null;
+      
+      case 'firstName':
+        if (!value.trim()) return 'First name is required';
+        if (value.trim().length < 2) return 'First name must be at least 2 characters';
+        return null;
+      
+      case 'lastName':
+        if (!value.trim()) return 'Last name is required';
+        if (value.trim().length < 2) return 'Last name must be at least 2 characters';
+        return null;
+      
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!this.emailRegex.test(value)) return 'Please enter a valid email address';
+        return null;
+      
+      case 'password':
+        if (!value.trim()) return 'Password is required';
+        if (!this.passwordRegex.test(value)) return 'Password must be at least 8 characters with uppercase, lowercase, number, and special character';
+        return null;
+      
+      case 'contactNo':
+        if (!value.trim()) return 'Contact number is required';
+        if (!this.phoneRegex.test(value)) return 'Please enter a valid phone number';
+        return null;
+      
+      case 'dateOfBirth':
+        if (!value.trim()) return 'Date of birth is required';
+        let birthDate = new Date(value);
+        const today = new Date();
+        if (birthDate >= today) return 'Date of birth must be in the past';
+        return null;
+      
+      case 'address':
+        if (!value.trim()) return 'Address is required';
+        if (value.trim().length < 10) return 'Address must be at least 10 characters';
+        return null;
+      
+      case 'role':
+        if (!value.trim()) return 'Role is required';
+        return null;
+      
+      default:
+        return null;
+    }
+  }
+  
+  validateAllFields(): void {
+    this.validationErrors = {};
+    
+    const fieldsToValidate = ['userId', 'firstName', 'lastName', 'email', 'password', 'contactNo', 'dateOfBirth', 'address', 'role'];
+    
+    fieldsToValidate.forEach(field => {
+      const value = this.newUser[field as keyof typeof this.newUser] as string;
+      const error = this.validateField(field, value);
+      if (error) {
+        this.validationErrors[field] = error;
+      }
+    });
+  }
+  
+  onFieldChange(fieldName: string): void {
+    // Get the current value from the newUser object
+    const value = this.newUser[fieldName as keyof typeof this.newUser] as string;
+    
+    // Validate the field and update errors
+    const error = this.validateField(fieldName, value);
+    if (error) {
+      this.validationErrors[fieldName] = error;
+    } else {
+      delete this.validationErrors[fieldName];
+    }
+  }
+  
+  hasValidationError(fieldName: string): boolean {
+    return !!this.validationErrors[fieldName];
+  }
+  
+  getValidationError(fieldName: string): string {
+    return this.validationErrors[fieldName] || '';
+  }
+  
+  hasAnyValidationErrors(): boolean {
+    return Object.keys(this.validationErrors).length > 0;
+  }
+
+  getValidationErrorsList(): string[] {
+    return Object.values(this.validationErrors);
+  }
+  
   isFormValid(): boolean {
-    return !!(this.newUser.userId &&
-             this.newUser.firstName &&
-             this.newUser.lastName &&
-             this.newUser.email &&
-             this.newUser.role &&
-             this.newUser.status);
+    this.validateAllFields();
+    return !this.hasAnyValidationErrors() && 
+           !!(this.newUser.userId &&
+              this.newUser.firstName &&
+              this.newUser.lastName &&
+              this.newUser.email &&
+              this.newUser.password &&
+              this.newUser.contactNo &&
+              this.newUser.dateOfBirth &&
+              this.newUser.address &&
+              this.newUser.role &&
+              this.newUser.status);
   }
 
   // Search and filter methods

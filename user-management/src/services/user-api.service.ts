@@ -72,6 +72,22 @@ export interface UserActivity {
   ipAddress?: string;
 }
 
+export interface CreateUserRequest {
+  userName: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  dateOfBirth: string;
+  contactNo: string;
+  email: string;
+  emailVerified?: boolean;
+  address: string;
+  picture?: string;
+  setPassword?: boolean;
+  password: string;
+  confirmPassword: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -256,5 +272,23 @@ export class UserApiService {
     total: number;
   }> {
     return this.apiService.get(`/users/${userId}/activity`, params);
+  }
+
+  // Create new user with API-specific interface
+  createApiUser(userData: CreateUserRequest): Observable<ApiUser> {
+    const url = `${this.baseUrl}/api/users`;
+    
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': this.authApiService.getAuthorizationHeader() || ''
+    });
+
+    return this.http.post<ApiUser>(url, userData, { headers }).pipe(
+      catchError(error => {
+        console.error('🚨 Create User API Request Failed:', error);
+        throw new Error(`Failed to create user: ${error.message || 'Unknown error'}`);
+      })
+    );
   }
 }

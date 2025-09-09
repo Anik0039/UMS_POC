@@ -1,9 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { Router } from '@angular/router';
-import { SSOService,  } from './sso.service';
-import { AuthApiService } from './auth-api.service';
+import { SSOService } from './sso.service';
+import { AuthApiService, RefreshTokenRequest } from './auth-api.service';
 import { map, catchError } from 'rxjs/operators';
+import { SsoRedirectInfo } from '../models/sso.models';
+import { SsoErrorHandlerService } from './sso-error-handler.service';
 
 export interface User {
   userId: string;
@@ -16,6 +18,31 @@ export interface User {
   joinDate?: Date;
 }
 
+export interface SSOLoginResponse {
+  success: boolean;
+  user?: {
+    id?: string;
+    userId?: string;
+    name: string;
+    email: string;
+    role?: string;
+    status?: string;
+  };
+  redirected?: boolean;
+}
+
+export interface SSOTokenValidationResponse {
+  success: boolean;
+  user?: {
+    id?: string;
+    userId?: string;
+    name: string;
+    email: string;
+    role?: string;
+    status?: string;
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -23,6 +50,7 @@ export class AuthService {
   private router = inject(Router);
   private ssoService = inject(SSOService);
   private authApiService = inject(AuthApiService);
+  private errorHandler = inject(SsoErrorHandlerService);
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
   private currentUserSubject = new BehaviorSubject<User | null>(this.getCurrentUser());
@@ -30,11 +58,13 @@ export class AuthService {
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor() {
-    // Clear any existing auth data on startup
-    this.clearAuthData();
-    
-    // Check authentication status on service initialization
+  // Initialize user data from storage
+  private _initialized = this.loadUserFromStorage();
+
+  // Constructor removed - using dependency injection with inject()
+
+  private loadUserFromStorage(): void {
+    // Load user data from storage if available
     this.checkAuthStatus();
   }
 
@@ -74,10 +104,14 @@ export class AuthService {
           localStorage.setItem('isAuthenticated', 'true');
           localStorage.setItem('userInfo', JSON.stringify(user));
           localStorage.setItem('authMethod', 'api');
+          localStorage.setItem('current_username', userId); // Store username for refresh token
 
           // Update subjects
           this.isAuthenticatedSubject.next(true);
           this.currentUserSubject.next(user);
+
+          // Trigger post-login SSO workflow
+          this.processPostLoginSso();
 
           return true;
         }
@@ -85,12 +119,66 @@ export class AuthService {
       }),
       catchError(error => {
         console.error('Login failed:', error);
-        return new Observable<boolean>(observer => {
-          observer.next(false);
-          observer.complete();
-        });
+        return throwError(() => error);
       })
     );
+  }
+
+  /**
+   * Refresh the access token using the stored refresh token
+   * @returns Observable<boolean> indicating success or failure
+   */
+  refreshAccessToken(): Observable<boolean> {
+    const refreshToken = this.authApiService.getRefreshToken();
+    const username = localStorage.getItem('current_username');
+    
+    if (!refreshToken || !username) {
+      console.error('No refresh token or username available');
+      return throwError(() => new Error('No refresh token available'));
+    }
+
+    const refreshRequest: RefreshTokenRequest = {
+      userName: username,
+      refreshToken: refreshToken
+    };
+
+    return this.authApiService.refreshToken(refreshRequest).pipe(
+      map(response => {
+        if (response.isSuccess && response.value) {
+          // Token refresh successful, authentication state remains the same
+          console.log('Token refreshed successfully');
+          return true;
+        }
+        return false;
+      }),
+      catchError(error => {
+        console.error('Token refresh failed:', error);
+        // If refresh fails, logout the user
+        this.logout();
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Check if the access token needs to be refreshed and refresh it if necessary
+   * @returns Observable<boolean> indicating if the token is valid (refreshed if needed)
+   */
+  ensureValidToken(): Observable<boolean> {
+    if (!this.authApiService.isAuthenticated()) {
+      if (this.authApiService.getRefreshToken()) {
+        // Token expired but we have refresh token, try to refresh
+        return this.refreshAccessToken();
+      } else {
+        // No valid token and no refresh token
+        return throwError(() => new Error('No valid authentication'));
+      }
+    }
+    // Token is still valid
+    return new Observable<boolean>(observer => {
+      observer.next(true);
+      observer.complete();
+    });
   }
 
   logout(): void {
@@ -185,6 +273,7 @@ export class AuthService {
     localStorage.removeItem('userInfo');
     localStorage.removeItem('userPassword');
     localStorage.removeItem('authMethod');
+    localStorage.removeItem('current_username');
     
     // Clear SSO specific data
     localStorage.removeItem('sso_provider');
@@ -205,7 +294,7 @@ export class AuthService {
   loginWithSSO(providerId: string): Observable<boolean> {
     return new Observable(observer => {
       this.ssoService.loginWithSSO(providerId).subscribe({
-        next: (response: { success: boolean; user?: { id?: string; userId?: string; name: string; email: string; role?: string; status?: string; }; redirected?: boolean; }) => {
+        next: (response: SSOLoginResponse) => {
           if (response.success && response.user) {
             // Convert SSO user to our User format
             const user: User = {
@@ -248,7 +337,7 @@ export class AuthService {
   validateSSOToken(token: string): Observable<boolean> {
     return new Observable(observer => {
       this.ssoService.validateSSOToken(token).subscribe({
-        next: (response: { success: boolean; user?: { id?: string; userId?: string; name: string; email: string; role?: string; status?: string; }}) => {
+        next: (response: SSOTokenValidationResponse) => {
           if (response.success && response.user) {
             // Convert SSO user to our User format
             const user: User = {
@@ -289,6 +378,121 @@ export class AuthService {
   }
 
   isSSOModeActive(): boolean {
-    return this.getAuthMethod() === 'sso' && this.ssoService.isSSOModeEnabled();
+    return this.getAuthMethod() === 'sso';
+  }
+
+  /**
+   * Process post-login SSO workflow
+   * This method is called after successful login to handle SSO redirects
+   */
+  private processPostLoginSso(): void {
+    console.log('🔐 AuthService: Starting post-login SSO workflow');
+    
+    this.ssoService.processPostLoginSso().subscribe({
+      next: (redirectInfos) => {
+        try {
+          if (redirectInfos && redirectInfos.length > 0) {
+            // Store redirect information for later use
+            const redirectData = JSON.stringify(redirectInfos);
+            localStorage.setItem('sso_redirect_info', redirectData);
+            console.log(`🔐 AuthService: SSO redirect information stored for ${redirectInfos.length} service(s)`);
+            
+            // Log service details for debugging
+            redirectInfos.forEach(info => {
+              console.log(`🔗 Service: ${info.service.clientId} - Ready for redirect`);
+            });
+          } else {
+            console.log('🔐 AuthService: No SSO services available for redirect');
+            // Clear any existing redirect info
+            localStorage.removeItem('sso_redirect_info');
+          }
+        } catch (storageError) {
+          this.errorHandler.handleError(storageError, 'sso-redirect-storage');
+        }
+      },
+      error: (error) => {
+        this.errorHandler.handleError(error, 'auth-service-post-login-sso');
+      }
+    });
+  }
+
+  /**
+   * Get SSO redirect information from storage
+   * @returns Array of SSO redirect information or empty array
+   */
+  getSsoRedirectInfo(): SsoRedirectInfo[] {
+    try {
+      const storedInfo = localStorage.getItem('sso_redirect_info');
+      if (!storedInfo) {
+        console.log('🔐 AuthService: No SSO redirect information found in storage');
+        return [];
+      }
+      
+      const redirectInfos = JSON.parse(storedInfo);
+      
+      // Validate the stored data structure
+      if (!Array.isArray(redirectInfos)) {
+        throw new Error('Invalid SSO redirect info format: expected array');
+      }
+      
+      // Validate each redirect info object
+      const validRedirectInfos = redirectInfos.filter(info => {
+        try {
+          if (!info || typeof info !== 'object') return false;
+          if (!info.service?.clientId) return false;
+          if (!info.token) return false;
+          if (!info.redirectUrl) return false;
+          return true;
+        } catch (validationError) {
+          this.errorHandler.handleError(validationError, 'sso-redirect-info-validation');
+          return false;
+        }
+      });
+      
+      console.log(`🔐 AuthService: Retrieved ${validRedirectInfos.length} valid SSO redirect info(s)`);
+      return validRedirectInfos;
+    } catch (error) {
+      this.errorHandler.handleError(error, 'sso-redirect-info-retrieval');
+      // Clear corrupted data
+      localStorage.removeItem('sso_redirect_info');
+      return [];
+    }
+  }
+
+  /**
+   * Redirect to a specific service using SSO
+   * @param serviceClientId - The client ID of the service to redirect to
+   */
+  redirectToSsoService(serviceClientId: string): void {
+    try {
+      if (!serviceClientId) {
+        throw new Error('Service client ID is required for SSO redirect');
+      }
+      
+      const ssoRedirectInfos = this.getSsoRedirectInfo();
+      
+      if (ssoRedirectInfos.length === 0) {
+        throw new Error('No SSO redirect information available');
+      }
+      
+      const targetService = ssoRedirectInfos.find(info => info.service.clientId === serviceClientId);
+      
+      if (!targetService) {
+        throw new Error(`Service ${serviceClientId} not found in available SSO services`);
+      }
+      
+      if (!targetService.redirectUrl) {
+        throw new Error(`No redirect URL available for service ${serviceClientId}`);
+      }
+      
+      console.log(`🔗 AuthService: Redirecting to service ${serviceClientId}:`, targetService.redirectUrl);
+      
+      // Perform the redirect
+      window.location.href = targetService.redirectUrl;
+      
+    } catch (error) {
+      this.errorHandler.handleError(error, 'sso-service-redirect');
+      console.error(`Failed to redirect to SSO service ${serviceClientId}:`, error);
+    }
   }
 }

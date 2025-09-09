@@ -7,13 +7,7 @@ export interface AppConfig {
     timeout: number;
     retries: number;
   };
-  keycloak: {
-    url: string;
-    realm: string;
-    clientId: string;
-  };
   features: {
-    enableKeycloak: boolean;
     enableApiIntegration: boolean;
     enableUserManagement: boolean;
     enableRoleBasedAccess: boolean;
@@ -27,14 +21,8 @@ export const developmentConfig: AppConfig = {
     timeout: 30000,
     retries: 3
   },
-  keycloak: { 
-    url: 'http://10.11.201.80:8080', // Your Keycloak server URL
-    realm: 'era-platform', // Your realm name
-    clientId: 'ums-web' // Your client ID
-  },
   features: {
-    enableKeycloak: false,
-    enableApiIntegration: true,
+    enableApiIntegration: false,
     enableUserManagement: true,
     enableRoleBasedAccess: true
   }
@@ -47,14 +35,8 @@ export const productionConfig: AppConfig = {
     timeout: 30000,
     retries: 3
   },
-  keycloak: {
-    url: 'http://10.11.201.80:8080', // Your production Keycloak URL
-    realm: 'era-platform', // Your realm name
-    clientId: 'ums-web' // Your client ID
-  },
   features: {
-    enableKeycloak: false,
-    enableApiIntegration: true,
+    enableApiIntegration: false,
     enableUserManagement: true,
     enableRoleBasedAccess: true
   }
