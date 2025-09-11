@@ -151,9 +151,9 @@ import { LucideAngularModule, ExternalLink, Shield, CheckCircle, Grid3X3, Users,
                 🔐 Connecting via SSO...
               </p>
               
-              <p *ngIf="service.baseUrl && !isSSOLoading(service.clientId)" class="text-xs text-gray-500 dark:text-gray-500 truncate">
+              <!-- <p *ngIf="service.baseUrl && !isSSOLoading(service.clientId)" class="text-xs text-gray-500 dark:text-gray-500 truncate">
                 {{ service.baseUrl }}
-              </p>
+              </p> -->
               
               <p *ngIf="isSSOLoading(service.clientId)" class="text-xs text-yellow-600 dark:text-yellow-400 truncate">
                 ⏳ Please wait...
@@ -354,14 +354,16 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
    */
   private handleSSORedirect(service: PermittedService): void {
     this.setSSOLoading(service.clientId, true);
-    this.addDebugLog(`🔐 Requesting SSO token for ${service.name} (${service.clientId})`);
+    this.addDebugLog(`🔐 Generating new SSO token for ${service.name} (${service.clientId})`);
+    this.addDebugLog(`📡 Making fresh token request to /api/auth/sso-token endpoint`);
     
     const startTime = Date.now();
     
     this.authApiService.getSsoToken({ clientId: service.clientId }).subscribe({
       next: (tokenResponse: any) => {
         const duration = Date.now() - startTime;
-        this.addDebugLog(`✅ SSO token received for ${service.clientId} in ${duration}ms: ${JSON.stringify(tokenResponse)}`);
+        this.addDebugLog(`✅ New SSO token generated for ${service.clientId} in ${duration}ms: ${JSON.stringify(tokenResponse)}`);
+        this.addDebugLog(`🔑 Fresh token ready for service redirect`);
         
         this.setSSOLoading(service.clientId, false);
         
@@ -416,10 +418,11 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
      // Different SSO URL patterns based on service configuration
      // Use default SSO path since ssoPath is not available in PermittedService
      const ssoPath = '/sso';
-     return `${baseUrl}${ssoPath}?token=${encodeURIComponent(token)}`;
+     const finalUrl = `${baseUrl}${ssoPath}?token=${encodeURIComponent(token)}`;
      
-     // Default SSO pattern - append token parameter
-     return `${baseUrl}?token=${encodeURIComponent(token)}`;
+     this.addDebugLog(`🔧 Constructing SSO URL: baseUrl=${baseUrl}, ssoPath=${ssoPath}, token=${token}, finalUrl=${finalUrl}`);
+     
+     return finalUrl;
    }
   
   /**
@@ -451,10 +454,17 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
   }
   
   /**
-   * Show service unavailable message
+   * Show service unavailable message with specific error for missing URL
    */
   private showServiceUnavailable(service: PermittedService): void {
-    alert(`${service.name} is currently unavailable. Please try again later or contact support.`);
+    const serviceName = service.name || service.clientId || 'Unknown Service';
+    const errorMessage = `⚠️ Service Configuration Error\n\n` +
+      `Service: ${serviceName}\n` +
+      `Issue: No URL configured for this service\n\n` +
+      `This service is not yet ready for access. Please contact your system administrator to configure the service URL.`;
+    
+    alert(errorMessage);
+    this.addDebugLog(`❌ Service unavailable - No URL configured for: ${serviceName} (${service.clientId})`);
   }
   
   /**
@@ -847,6 +857,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
 
   onServiceClick(service: PermittedService): void {
     this.addDebugLog(`🎯 Service clicked: ${service.name || service.clientId} (${service.clientId})`);
+    this.addDebugLog(`🔍 Service baseUrl: '${service.baseUrl}' (type: ${typeof service.baseUrl})`);
     
     // Prevent multiple clicks while SSO is loading
     if (this.isSSOLoading(service.clientId)) {
@@ -867,13 +878,16 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // For external services, use enhanced SSO flow
-    if (service.baseUrl) {
-      this.handleSSORedirect(service);
-    } else {
-      this.addDebugLog(`❌ No baseUrl configured for service: ${service.name || service.clientId}`);
+    // Check for empty or invalid baseUrl more strictly
+    if (!service.baseUrl || service.baseUrl.trim() === '' || service.baseUrl === 'undefined' || service.baseUrl === 'null') {
+      this.addDebugLog(`❌ No valid baseUrl configured for service: ${service.name || service.clientId} - baseUrl: '${service.baseUrl}'`);
       this.showServiceUnavailable(service);
+      return;
     }
+    
+    // For external services, use enhanced SSO flow
+    this.addDebugLog(`✅ Valid baseUrl found, proceeding with SSO redirect`);
+    this.handleSSORedirect(service);
   }
 
   testAuthentication() {
@@ -992,30 +1006,42 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
         this.addDebugLog(`✅ API call successful - services: ${JSON.stringify(services)}`);
         this.addDebugLog(`Number of services received: ${services.length}`);
         
-        // Log each service for debugging
+        // Log each service for debugging with all properties
         services.forEach((service, index) => {
-          this.addDebugLog(`Service ${index + 1}: ${JSON.stringify({
-            clientId: service.clientId,
-            name: service.name,
-            baseUrl: service.baseUrl,
-            directAccessGrantsEnabled: service.directAccessGrantsEnabled
-          })}`);
+          this.addDebugLog(`Service ${index + 1}: ${JSON.stringify(service, null, 2)}`);
+          this.addDebugLog(`  - clientId: '${service.clientId}'`);
+          this.addDebugLog(`  - name: '${service.name || 'N/A'}'`);
+          this.addDebugLog(`  - baseUrl: '${service.baseUrl || 'N/A'}'`);
+          this.addDebugLog(`  - directAccessGrantsEnabled: ${service.directAccessGrantsEnabled}`);
+          this.addDebugLog(`  - Will be included: ${service.clientId !== 'ums-api'}`);
         });
         
-        // Filter services with valid clientId (exclude UMS as it's added separately)
+        // Check if UMS API is present in the response
+        const hasUmsApi = services.some(service => service.clientId === 'ums-api');
+        this.addDebugLog(`UMS API present in response: ${hasUmsApi}`);
+        
+        // Filter services: exclude only 'ums-api', include all other services regardless of clientId
         const filteredServices = services.filter(service => 
-          service.clientId && 
-          service.clientId !== '' && 
-          service.clientId !== 'ums'
+          service.clientId !== 'ums-api'  // Exclude ums-api as it already exists in service card
         );
         
-        this.addDebugLog(`Filtered permitted services: ${filteredServices.length}`);
+        this.addDebugLog(`All permitted services (excluding only ums-api): ${filteredServices.length}`);
         
-        // Always include UMS as the first service (parent service)
+        // Always include UMS service as the first service
         const umsService = this.getUMSService();
         this.services = [umsService, ...filteredServices];
+        this.addDebugLog('Always including internal UMS service as first service');
         
-        this.addDebugLog(`Final services array: ${JSON.stringify(this.services.map(s => ({ clientId: s.clientId, name: s.name })))}`);
+        if (hasUmsApi) {
+          this.addDebugLog('Note: UMS API also found in response but using internal UMS service');
+        }
+        
+        this.addDebugLog(`Final services array (${this.services.length} total):`);
+        this.services.forEach((service, index) => {
+          this.addDebugLog(`  ${index + 1}. clientId: '${service.clientId}', name: '${service.name || 'N/A'}', baseUrl: '${service.baseUrl || 'N/A'}'`);
+        });
+        this.addDebugLog(`Services that will be displayed in UI: ${this.services.length}`);
+        this.addDebugLog(`Template condition check: !loading(${!this.loading}) && !error(${!this.error}) && services.length > 0(${this.services.length > 0})`);
         
         this.loading = false;
         
@@ -1046,8 +1072,8 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
           this.loading = false;
           this.retryLoadServices();
         } else {
-          // Final failure - show UMS service and error
-          this.services = [this.getUMSService()];
+          // Final failure - show empty services array and error (no UMS fallback)
+          this.services = [];
           this.error = errorMessage;
           this.loading = false;
           this.addDebugLog(`Final error (no more retries): ${errorMessage}`);

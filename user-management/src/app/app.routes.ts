@@ -20,16 +20,16 @@ export const routes: Routes = [
   },
   {
     path: '',
+    redirectTo: '/login',
+    pathMatch: 'full'
+  },
+  {
+    path: 'dashboard',
     component: DashboardLayoutComponent,
     canActivate: [AuthGuard],
     children: [
       {
         path: '',
-        redirectTo: '/services',
-        pathMatch: 'full'
-      },
-      {
-        path: 'dashboard',
         component: DashboardComponent
       },
       {

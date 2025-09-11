@@ -40,7 +40,7 @@ import { SSOService } from '../../services/sso.service';
                   [(ngModel)]="credentials.userId"
                   name="userId"
                   placeholder="User ID"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-center"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left"
                   required
                 />
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -57,7 +57,7 @@ import { SSOService } from '../../services/sso.service';
                   [(ngModel)]="credentials.password"
                   name="password"
                   placeholder="Password"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-center"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 text-left"
                   required
                 />
                 <button

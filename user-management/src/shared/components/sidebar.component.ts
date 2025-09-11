@@ -114,23 +114,23 @@ export class SidebarComponent implements OnInit, OnDestroy {
     {
       title: 'Users',
       icon: Users,
-      href: '/users',
+      href: '/dashboard/users',
       badge: this.userCount.toString()
     },
     {
       title: 'Analytics',
       icon: BarChart3,
-      href: '/analytics'
+      href: '/dashboard/analytics'
     },
     {
       title: 'Reports',
       icon: FileText,
-      href: '/reports'
+      href: '/dashboard/reports'
     },
     {
       title: 'Settings',
       icon: Settings,
-      href: '/settings'
+      href: '/dashboard/settings'
     }
   ];
 

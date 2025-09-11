@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, throwError, from } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import { appConfig } from '../config/app.config';
 import { PermittedServicesResponse, SsoTokenRequest, SsoTokenResponse, PermittedService } from '../models/sso.models';
 
@@ -366,6 +366,13 @@ export class AuthApiService {
         baseUrl = service.baseUrl || service.url || '';
       }
       
+      // If still no baseUrl, don't use fallback - let the component handle the error
+      if (!baseUrl || baseUrl === '/health' || baseUrl.startsWith('/')) {
+        console.warn(`⚠️ Invalid baseURL for service '${service.clientId}':`, baseUrl);
+        console.warn('Service will be marked as unavailable - no fallback URL applied');
+        baseUrl = ''; // Set to empty string to trigger error handling in component
+      }
+      
       // Sanitize baseUrl - ensure it has protocol and proper format
       if (baseUrl && typeof baseUrl === 'string') {
         baseUrl = baseUrl.trim();
@@ -416,14 +423,46 @@ export class AuthApiService {
     console.log('Access token:', this.getAccessToken()?.substring(0, 20) + '...');
     console.log('=====================');
     
-    return this.http.get<{ isSuccess: boolean; value: unknown[] }>(url, { headers })
+    return this.http.get<{ isSuccess: boolean; value: any[] }>(url, { headers })
       .pipe(
-        map(response => {
+        switchMap(response => from(this.processServicesWithTokens(response))),
+        catchError(error => {
+          console.error('=== API Error Debug ===');
+          console.error('Error fetching permitted services:', error);
+          console.error('Error status:', error.status);
+          console.error('Error message:', error.message);
+          console.error('Error response:', error.error);
+          console.error('======================');
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+    * Process services with SSO tokens
+    * @param response - API response
+    * @returns Promise with processed services
+    */
+   private async processServicesWithTokens(response: { isSuccess: boolean; value: any[] }): Promise<{ services: PermittedService[] }> {
           console.log('=== API Response Debug ===');
           console.log('Raw response:', response);
           console.log('Is success:', response.isSuccess);
           console.log('Services count:', response.value?.length || 0);
           console.log('Services data:', response.value);
+          
+          // Log each service's raw data in detail
+          if (response.value && Array.isArray(response.value)) {
+            response.value.forEach((service, index) => {
+              console.log(`🔍 Service ${index + 1} Raw Data:`, {
+                clientId: service.clientId,
+                attributes: service.attributes,
+                baseUrl: service.baseUrl,
+                url: service.url,
+                directAccessGrantsEnabled: service.directAccessGrantsEnabled,
+                fullServiceObject: service
+              });
+            });
+          }
           console.log('========================');
           
           // Validate response structure
@@ -440,19 +479,103 @@ export class AuthApiService {
             return { services: [] };
           }
 
-          // Validate and sanitize each service
+          // Validate and sanitize each service with SSO token enhancement
           const validatedServices: PermittedService[] = [];
           let invalidCount = 0;
 
-          response.value.forEach((service, index) => {
-            const validatedService = this.validateAndSanitizeService(service);
+          for (const [index, service] of response.value.entries()) {
+            // Get SSO token for the service if it has directAccessGrantsEnabled
+            let enhancedService = service;
+            if (service.directAccessGrantsEnabled && service.clientId) {
+              try {
+                console.log(`=== Processing SSO token for ${service.clientId} ===`);
+                console.log('Service data:', service);
+                console.log('Service attributes:', service.attributes);
+                console.log('Service baseUrl:', service.attributes?.baseUrl);
+                
+                const tokenResponse = await this.getSsoToken({ clientId: service.clientId }).toPromise();
+                console.log('Token response:', tokenResponse);
+                
+                if (tokenResponse && tokenResponse.token) {
+                  // Extract baseURL from service response - each service should have its unique baseURL
+                  let serviceBaseUrl = '';
+                  
+                  // Priority order for baseURL extraction:
+                  // 1. service.attributes.baseUrl (primary)
+                  // 2. service.baseUrl (fallback)
+                  // 3. service.url (secondary fallback)
+                  if (service.attributes && service.attributes.baseUrl) {
+                    serviceBaseUrl = service.attributes.baseUrl.trim();
+                  } else if (service.baseUrl) {
+                    serviceBaseUrl = service.baseUrl.trim();
+                  } else if (service.url) {
+                    serviceBaseUrl = service.url.trim();
+                  }
+                  
+                  // Remove quotes if present
+                  serviceBaseUrl = serviceBaseUrl.replace(/^["']|["']$/g, '');
+                  
+                  // Validate and sanitize the baseURL
+                  if (!serviceBaseUrl || serviceBaseUrl === '/health' || serviceBaseUrl.startsWith('/')) {
+                    console.warn(`⚠️ Invalid baseURL for service '${service.clientId}':`, serviceBaseUrl);
+                    console.warn('Using fallback baseURL for service:', service.clientId);
+                    
+                    // Use a fallback baseURL based on service clientId
+                    const fallbackBaseUrls: { [key: string]: string } = {
+                      'general-ledger-api': 'https://general-ledger-api.example.com',
+                      'transaction-api': 'https://transaction-api.example.com',
+                      'treasury-api': 'https://treasury-api.example.com',
+                      'ums-api': 'https://ums-api.example.com'
+                    };
+                    
+                    serviceBaseUrl = fallbackBaseUrls[service.clientId] || `https://${service.clientId}.example.com`;
+                    console.log(`Using fallback baseURL for ${service.clientId}:`, serviceBaseUrl);
+                  }
+                  
+                  // Ensure baseURL has proper protocol
+                  if (!serviceBaseUrl.startsWith('http://') && !serviceBaseUrl.startsWith('https://')) {
+                    serviceBaseUrl = 'https://' + serviceBaseUrl;
+                  }
+                  
+                  // Remove trailing slash and any existing /sso path to avoid duplication
+                  serviceBaseUrl = serviceBaseUrl.replace(/\/$/, '').replace(/\/sso.*$/, '');
+                  
+                  const ssoUrl = `${serviceBaseUrl}/sso?token=${tokenResponse.token}`;
+                  
+                  console.log(`=== BaseURL Processing for ${service.clientId} ===`);
+                  console.log('Service attributes baseUrl:', service.attributes?.baseUrl);
+                  console.log('Service baseUrl:', service.baseUrl);
+                  console.log('Service url:', service.url);
+                  console.log('Extracted baseURL:', serviceBaseUrl);
+                  console.log('Token:', tokenResponse.token);
+                  console.log('Final SSO URL:', ssoUrl);
+                  console.log('===============================================');
+                  
+                  // Enhance the service with token in baseUrl
+                  enhancedService = {
+                    ...service,
+                    attributes: {
+                      ...service.attributes,
+                      baseUrl: ssoUrl
+                    }
+                  };
+                  console.log(`Enhanced ${service.clientId} with SSO token`);
+                } else {
+                  console.warn(`No token received for ${service.clientId}:`, tokenResponse);
+                }
+              } catch (error) {
+                console.warn(`Failed to get SSO token for ${service.clientId}:`, error);
+              }
+            }
+            
+            const validatedService = this.validateAndSanitizeService(enhancedService);
             if (validatedService) {
               validatedServices.push(validatedService);
             } else {
               invalidCount++;
               console.warn(`Skipping invalid service at index ${index}:`, service);
             }
-          });
+          }
 
           if (invalidCount > 0) {
             console.warn(`Filtered out ${invalidCount} invalid services from API response`);
@@ -464,20 +587,9 @@ export class AuthApiService {
           console.log(`Invalid services filtered: ${invalidCount}`);
           console.log(`========================`);
           
-          return {
-            services: validatedServices
-          };
-        }),
-        catchError(error => {
-          console.error('=== API Error Debug ===');
-          console.error('Error fetching permitted services:', error);
-          console.error('Error status:', error.status);
-          console.error('Error message:', error.message);
-          console.error('Error response:', error.error);
-          console.error('======================');
-          return throwError(() => error);
-        })
-      );
+    return {
+      services: validatedServices
+    };
   }
 
   /**
@@ -487,15 +599,36 @@ export class AuthApiService {
    */
   getSsoToken(request: SsoTokenRequest): Observable<SsoTokenResponse> {
     const headers = this.getHeaders();
-    
-    return this.http.post<{ token: string; expiresIn?: number; expires_in?: number }>(`${this.baseUrl}/api/auth/sso-token`, request, { headers })
+    console.log('=== SSO Token Request ===');
+    console.log('Request:', request);
+    console.log('URL:', `${this.baseUrl}/api/auth/sso-token`);
+    console.log('Headers:', headers);
+
+    return this.http.post<{ isSuccess: boolean; value: { token: string; expiresIn?: number; expires_in?: number }; errorMessage: string | null; totalRecord: number }>(`${this.baseUrl}/api/auth/sso-token`, request, { headers })
       .pipe(
-        map(response => ({
-          token: response.token,
-          expiresIn: response.expiresIn || response.expires_in
-        })),
+        map(response => {
+          console.log('=== SSO Token Response ===');
+          console.log('Raw response:', response);
+          
+          // Extract token from the correct nested structure
+          const token = response.value?.token;
+          const expiresIn = response.value?.expiresIn || response.value?.expires_in;
+          
+          const mappedResponse = {
+            token: token,
+            expiresIn: expiresIn
+          };
+          console.log('Mapped response:', mappedResponse);
+          return mappedResponse;
+        }),
         catchError(error => {
-          console.error('Error getting SSO token:', error);
+          console.error('SSO token request failed:', error);
+          console.error('Error details:', {
+            status: error.status,
+            statusText: error.statusText,
+            message: error.message,
+            error: error.error
+          });
           return throwError(() => error);
         })
       );
