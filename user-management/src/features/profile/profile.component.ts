@@ -1,8 +1,11 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule, User, Mail, Phone, MapPin, Calendar } from 'lucide-angular';
+import { UserApiService, ApiUser, ApiUsersResponse } from '../../services/user-api.service';
 import { AuthService, User as AuthUser } from '../../services/auth.service';
+import { AuthApiService } from '../../services/auth-api.service';
 import { Subscription } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 @Component({
   selector: 'app-profile',
@@ -25,17 +28,17 @@ import { Subscription } from 'rxjs';
               <!-- Profile Picture -->
               <div class="relative">
                 <div class="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-semibold text-primary">
-                  {{ getInitials(currentUser?.name || '') }}
+                  {{ getInitials(apiUserData?.fullName || currentUser?.name || '') }}
                 </div>
               </div>
               
               <!-- User Info -->
               <div>
-                <h2 class="text-2xl font-semibold text-foreground">{{ currentUser?.name || 'User Name' }}</h2>
+                <h2 class="text-2xl font-semibold text-foreground">{{ apiUserData?.fullName || currentUser?.name || 'User Name' }}</h2>
                 <p class="text-muted-foreground">{{ currentUser?.role || 'User' }}</p>
                 <div class="flex items-center space-x-2 mt-1">
-                  <div class="h-2 w-2 rounded-full bg-green-500"></div>
-                  <span class="text-sm text-muted-foreground">Active</span>
+                  <div class="h-2 w-2 rounded-full" [class]="apiUserData?.status ? 'bg-green-500' : 'bg-red-500'"></div>
+                  <span class="text-sm text-muted-foreground">{{ apiUserData?.status ? 'Active' : 'Inactive' }}</span>
                 </div>
               </div>
             </div>
@@ -61,7 +64,7 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-name"
                     type="text"
-                    [value]="currentUser?.name || 'N/A'"
+                    [value]="apiUserData?.fullName || currentUser?.name || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
@@ -76,7 +79,7 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-email"
                     type="email"
-                    [value]="currentUser?.email || 'N/A'"
+                    [value]="apiUserData?.email || currentUser?.email || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
@@ -91,7 +94,7 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-phone"
                     type="tel"
-                    [value]="currentUser?.phone || 'N/A'"
+                    [value]="apiUserData?.contactNo || currentUser?.phone || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
@@ -106,7 +109,7 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-location"
                     type="text"
-                    [value]="currentUser?.location || 'N/A'"
+                    [value]="apiUserData?.address || currentUser?.location || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
@@ -123,12 +126,13 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-user-id"
                     type="text"
-                    [value]="currentUser?.userId || 'N/A'"
+                    [value]="apiUserData?.userName || currentUser?.userId || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
                 </div>
 
+                <!-- Username -->
                 <!-- Role -->
                 <div>
                   <label for="profile-role" class="block text-sm font-medium text-foreground mb-2">Role</label>
@@ -141,16 +145,16 @@ import { Subscription } from 'rxjs';
                   />
                 </div>
 
-                <!-- Join Date -->
+                <!-- Date of Birth -->
                 <div>
-                  <label for="profile-member-since" class="block text-sm font-medium text-foreground mb-2">
+                  <label for="profile-dob" class="block text-sm font-medium text-foreground mb-2">
                     <lucide-angular [img]="calendarIcon" class="inline h-4 w-4 mr-2"></lucide-angular>
-                    Member Since
+                    Date of Birth
                   </label>
                   <input
-                    id="profile-member-since"
+                    id="profile-dob"
                     type="text"
-                    [value]="formatDate(currentUser?.joinDate)"
+                    [value]="formatDate(apiUserData?.dateOfBirth) || 'N/A'"
                     readonly
                     class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
@@ -160,8 +164,8 @@ import { Subscription } from 'rxjs';
                 <div>
                   <span class="block text-sm font-medium text-foreground mb-2">Account Status</span>
                   <div class="flex items-center space-x-2">
-                    <div class="h-3 w-3 rounded-full bg-green-500"></div>
-                    <span class="text-sm text-foreground">{{ currentUser?.status || 'Active' }}</span>
+                    <div class="h-3 w-3 rounded-full" [class]="apiUserData?.status ? 'bg-green-500' : 'bg-red-500'"></div>
+                    <span class="text-sm text-foreground">{{ apiUserData?.status ? 'Active' : 'Inactive' }}</span>
                   </div>
                 </div>
               </div>
@@ -172,56 +176,19 @@ import { Subscription } from 'rxjs';
       </div>
 
       <!-- Additional Information Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <!-- Recent Activity -->
-        <div class="bg-card rounded-lg border shadow-sm p-6">
-          <h3 class="text-lg font-semibold text-foreground mb-4">Recent Activity</h3>
-          <div class="space-y-3">
-            <div class="flex items-center space-x-3 text-sm">
-              <div class="h-2 w-2 rounded-full bg-blue-500"></div>
-              <span class="text-muted-foreground">Logged in from new device</span>
-              <span class="text-xs text-muted-foreground ml-auto">2 hours ago</span>
-            </div>
-            <div class="flex items-center space-x-3 text-sm">
-              <div class="h-2 w-2 rounded-full bg-green-500"></div>
-              <span class="text-muted-foreground">Profile updated</span>
-              <span class="text-xs text-muted-foreground ml-auto">1 day ago</span>
-            </div>
-            <div class="flex items-center space-x-3 text-sm">
-              <div class="h-2 w-2 rounded-full bg-yellow-500"></div>
-              <span class="text-muted-foreground">Password changed</span>
-              <span class="text-xs text-muted-foreground ml-auto">3 days ago</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Account Statistics -->
-        <div class="bg-card rounded-lg border shadow-sm p-6">
-          <h3 class="text-lg font-semibold text-foreground mb-4">Account Statistics</h3>
-          <div class="space-y-4">
-            <div class="flex justify-between items-center">
-              <span class="text-muted-foreground">Total Logins</span>
-              <span class="font-semibold text-foreground">{{ accountStats.totalLogins }}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-muted-foreground">Last Login</span>
-              <span class="font-semibold text-foreground">{{ formatDate(accountStats.lastLogin) }}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-muted-foreground">Sessions Today</span>
-              <span class="font-semibold text-foreground">{{ accountStats.sessionsToday }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   `,
   styleUrl: './profile.component.scss'
 })
 export class ProfileComponent implements OnInit, OnDestroy {
+    private userApiService = inject(UserApiService);
   private authService = inject(AuthService);
+private authApiService = inject(AuthApiService);
+  private http = inject(HttpClient);
 
   currentUser: AuthUser | null = null;
+  apiUserData: any = null;
   private userSubscription: Subscription = new Subscription();
 
   accountStats = {
@@ -243,6 +210,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.userSubscription = this.authService.currentUser$.subscribe(
       user => {
         this.currentUser = user;
+        console.log(this.currentUser);
+        if (user && user.name) {
+          this.getUserInfo(user.name);
+        }
       }
     );
   }
@@ -270,5 +241,19 @@ export class ProfileComponent implements OnInit, OnDestroy {
       month: 'long',
       day: 'numeric'
     });
+  }
+
+  getUserInfo(username: string): void {
+    this.userApiService.getUserByUsername(username).subscribe({
+      next: (res) => {
+        console.log(res,"api response");
+        if (res.isSuccess && res.value) {
+          this.apiUserData = res.value;
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching user info:', error);
+      }
+    })
   }
 }

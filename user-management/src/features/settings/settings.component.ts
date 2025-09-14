@@ -56,186 +56,16 @@ import { Subscription } from 'rxjs';
             </div>
           </div>
           
-          <div class="mt-4 flex justify-end">
+          <!-- <div class="mt-4 flex justify-end">
             <app-button (click)="saveProfileSettings()">Save Changes</app-button>
-          </div>
+          </div> -->
         </div>
 
         <!-- Security Settings -->
-        <div class="rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
-          <div class="flex items-center space-x-3 mb-4">
-            <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <lucide-angular [img]="shieldIcon" class="h-5 w-5 text-primary"></lucide-angular>
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold">Security Settings</h3>
-              <p class="text-sm text-muted-foreground">Manage your account security and authentication</p>
-            </div>
-          </div>
-          
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-medium">Two-Factor Authentication</h4>
-                <p class="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-              </div>
-              <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                Enable
-              </button>
-            </div>
-            
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-medium">Change Password</h4>
-                  <p class="text-sm text-muted-foreground">Update your account password</p>
-                </div>
-                <button 
-                  (click)="togglePasswordForm()" 
-                  class="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  {{ showPasswordForm ? 'Cancel' : 'Change' }}
-                </button>
-              </div>
-              
-              <!-- Password Change Form -->
-              <div *ngIf="showPasswordForm" class="mt-4 p-4 border rounded-lg bg-muted/30">
-                <form (ngSubmit)="changePassword()" #passwordForm="ngForm">
-                  <div class="space-y-4">
-                    <!-- Current Password -->
-                    <div class="space-y-2">
-                      <label for="current-password" class="text-sm font-medium">Current Password</label>
-                      <div class="relative">
-                        <input
-                          id="current-password"
-                          [type]="showCurrentPassword ? 'text' : 'password'"
-                          [(ngModel)]="passwordData.currentPassword"
-                          name="currentPassword"
-                          required
-                          class="w-full px-3 py-2 pr-10 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                          placeholder="Enter current password"
-                        />
-                        <button
-                          type="button"
-                          (click)="toggleCurrentPasswordVisibility()"
-                          class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          <lucide-angular [img]="showCurrentPassword ? eyeOffIcon : eyeIcon" class="h-4 w-4"></lucide-angular>
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <!-- New Password -->
-                    <div class="space-y-2">
-                      <label for="new-password" class="text-sm font-medium">New Password</label>
-                      <div class="relative">
-                        <input
-                          id="new-password"
-                          [type]="showNewPassword ? 'text' : 'password'"
-                          [(ngModel)]="passwordData.newPassword"
-                          name="newPassword"
-                          required
-                          minlength="8"
-                          class="w-full px-3 py-2 pr-10 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                          placeholder="Enter new password"
-                        />
-                        <button
-                          type="button"
-                          (click)="toggleNewPasswordVisibility()"
-                          class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          <lucide-angular [img]="showNewPassword ? eyeOffIcon : eyeIcon" class="h-4 w-4"></lucide-angular>
-                        </button>
-                      </div>
-                      <div class="text-xs text-muted-foreground">
-                        Password must be at least 8 characters long
-                      </div>
-                    </div>
-                    
-                    <!-- Confirm Password -->
-                    <div class="space-y-2">
-                      <label for="confirm-password" class="text-sm font-medium">Confirm New Password</label>
-                      <div class="relative">
-                        <input
-                          id="confirm-password"
-                          [type]="showConfirmPassword ? 'text' : 'password'"
-                          [(ngModel)]="passwordData.confirmPassword"
-                          name="confirmPassword"
-                          required
-                          class="w-full px-3 py-2 pr-10 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                          placeholder="Confirm new password"
-                          [class.border-red-500]="passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword"
-                        />
-                        <button
-                          type="button"
-                          (click)="toggleConfirmPasswordVisibility()"
-                          class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          <lucide-angular [img]="showConfirmPassword ? eyeOffIcon : eyeIcon" class="h-4 w-4"></lucide-angular>
-                        </button>
-                      </div>
-                      <div *ngIf="passwordData.newPassword && passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword" class="text-xs text-red-500">
-                        Passwords do not match
-                      </div>
-                    </div>
-                    
-                    <!-- Submit Buttons -->
-                    <div class="flex justify-end space-x-2 pt-4">
-                      <button
-                        type="button"
-                        (click)="togglePasswordForm()"
-                        class="inline-flex items-center space-x-2 px-4 py-2 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <lucide-angular [img]="cancelIcon" class="h-4 w-4"></lucide-angular>
-                        <span>Cancel</span>
-                      </button>
-                      <button
-                        type="submit"
-                        [disabled]="!passwordForm.valid || passwordData.newPassword !== passwordData.confirmPassword || isChangingPassword"
-                        class="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <lucide-angular [img]="checkIcon" class="h-4 w-4"></lucide-angular>
-                        <span>{{ isChangingPassword ? 'Changing...' : 'Change Password' }}</span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Notification Settings -->
-        <div class="rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
-          <div class="flex items-center space-x-3 mb-4">
-            <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <lucide-angular [img]="bellIcon" class="h-5 w-5 text-primary"></lucide-angular>
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold">Notification Settings</h3>
-              <p class="text-sm text-muted-foreground">Configure how you receive notifications</p>
-            </div>
-          </div>
-          
-          <div class="space-y-4">
-            <div *ngFor="let notification of notificationSettings; let i = index" class="flex items-center justify-between">
-              <div>
-                <h4 class="font-medium">{{ notification.title }}</h4>
-                <p class="text-sm text-muted-foreground">{{ notification.description }}</p>
-              </div>
-              <label [for]="'notification-' + i" class="relative inline-flex items-center cursor-pointer">
-                <input 
-                  [id]="'notification-' + i"
-                  type="checkbox" 
-                  [(ngModel)]="notification.enabled" 
-                  (change)="saveNotificationSettings()" 
-                  class="sr-only peer" 
-                />
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          </div>
-        </div>
+
 
         <!-- Appearance Settings -->
         <div class="rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
@@ -259,39 +89,7 @@ import { Subscription } from 'rxjs';
         </div>
 
         <!-- System Settings -->
-        <div class="rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
-          <div class="flex items-center space-x-3 mb-4">
-            <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <lucide-angular [img]="databaseIcon" class="h-5 w-5 text-primary"></lucide-angular>
-            </div>
-            <div>
-              <h3 class="text-lg font-semibold">System Settings</h3>
-              <p class="text-sm text-muted-foreground">Advanced system configuration options</p>
-            </div>
-          </div>
-          
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-medium">Data Export</h4>
-                <p class="text-sm text-muted-foreground">Export your data in various formats</p>
-              </div>
-              <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                Export
-              </button>
-            </div>
-            
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-medium">Clear Cache</h4>
-                <p class="text-sm text-muted-foreground">Clear application cache and temporary data</p>
-              </div>
-              <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                Clear
-              </button>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   `,

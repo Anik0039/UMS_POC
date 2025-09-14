@@ -23,33 +23,7 @@ import { LucideAngularModule, ExternalLink, Shield, CheckCircle, Grid3X3, Users,
             Access your enabled services below. Click on any service card to navigate.
           </p>
           
-          <!-- Debug Controls -->
-           <div class="mt-6 flex justify-center space-x-4 flex-wrap">
-             <button 
-               (click)="toggleDebug()"
-               [class]="showDebug ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'"
-               class="px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium mb-2">
-               {{ showDebug ? '🐛 Hide Debug' : '🐛 Show Debug' }}
-             </button>
-             <button 
-               *ngIf="showDebug" 
-               (click)="clearDebugLogs()"
-               class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm font-medium mb-2">
-               Clear Logs
-             </button>
-             <button 
-               *ngIf="showDebug" 
-               (click)="testAuthentication()"
-               class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium mb-2">
-               🔐 Test Auth
-             </button>
-             <button 
-               *ngIf="showDebug" 
-               (click)="testApiConnection()"
-               class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium mb-2">
-               🌐 Test API
-             </button>
-           </div>
+       
         </div>
         
         <!-- Debug Panel -->

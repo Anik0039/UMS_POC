@@ -60,7 +60,7 @@ import { Subscription } from 'rxjs';
             >
               <div class="px-3 py-2 text-sm">
                 <p class="font-medium">{{ currentUser?.name || 'User' }}</p>
-                <p class="text-muted-foreground">{{ currentUser?.email || 'user@example.com' }}</p>
+                <!-- <p class="text-muted-foreground">{{ currentUser?.email || 'user@example.com' }}</p> -->
                 <p class="text-xs text-muted-foreground mt-1" *ngIf="getAuthMethodDisplay()">
                   {{ getAuthMethodDisplay() }}
                 </p>

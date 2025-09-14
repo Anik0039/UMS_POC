@@ -65,7 +65,7 @@ export interface SidebarItem {
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium truncate">{{ currentUser?.name || 'User' }}</p>
-            <p class="text-xs text-muted-foreground truncate">{{ currentUser?.email || 'No email' }}</p>
+            <!-- <p class="text-xs text-muted-foreground truncate">{{ currentUser?.email || 'No email' }}</p> -->
           </div>
         </div>
         <button 

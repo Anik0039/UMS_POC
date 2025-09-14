@@ -8,6 +8,8 @@ import { AuthApiService } from './auth-api.service';
 import { appConfig } from '../config/app.config';
 
 export interface ApiUser {
+  value: any;
+  isSuccess: any;
   id: number;
   userName: string;
   firstName: string;

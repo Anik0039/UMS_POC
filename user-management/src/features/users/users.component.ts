@@ -64,71 +64,7 @@ export interface User {
             class="h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
         </div>
-        <div class="relative">
-          <button 
-            (click)="toggleFilterDropdown()"
-            class="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <lucide-angular [img]="filterIcon" class="mr-2 h-4 w-4"></lucide-angular>
-            Filter
-            <lucide-angular [img]="chevronDownIcon" class="ml-2 h-4 w-4"></lucide-angular>
-          </button>
-          
-          <!-- Filter Dropdown -->
-          <div *ngIf="showFilterDropdown" class="absolute right-0 mt-2 w-56 rounded-md border bg-background shadow-lg z-50">
-            <div class="p-4 space-y-4">
 
-              
-              <!-- Joined Date Filter -->
-              <div>
-                <label class="text-sm font-medium mb-2 block" for="joinedMonth">Joined Date</label>
-                <div class="space-y-2">
-                  <select 
-                    id="joinedMonth"
-                    [(ngModel)]="selectedJoinedMonth"
-                    (change)="onFilterChange()"
-                    class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="">All Months</option>
-                    <option value="1">January</option>
-                    <option value="2">February</option>
-                    <option value="3">March</option>
-                    <option value="4">April</option>
-                    <option value="5">May</option>
-                    <option value="6">June</option>
-                    <option value="7">July</option>
-                    <option value="8">August</option>
-                    <option value="9">September</option>
-                    <option value="10">October</option>
-                    <option value="11">November</option>
-                    <option value="12">December</option>
-                  </select>
-                  <select 
-                    id="joinedYear"
-                    [(ngModel)]="selectedJoinedYear"
-                    (change)="onFilterChange()"
-                    class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="">All Years</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                    <option value="2021">2021</option>
-                    <option value="2020">2020</option>
-                  </select>
-                </div>
-              </div>
-              
-              <!-- Clear Filters -->
-              <button 
-                (click)="clearFilters()"
-                class="w-full px-3 py-2 text-sm border rounded-md hover:bg-accent"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Loading State -->
@@ -651,9 +587,6 @@ export class UsersComponent implements OnInit {
   
   // Search and filter properties
   searchTerm = '';
-  selectedJoinedMonth = '';
-  selectedJoinedYear = '';
-  showFilterDropdown = false;
   newUser = {
     picture: '',
     userName: '',
@@ -1315,63 +1248,30 @@ export class UsersComponent implements OnInit {
 
   // Search and filter methods
   onSearch(): void {
-    this.currentPage = 1; // Reset to first page when searching
-    this.applyFilters();
-  }
+        this.applyFilters();
+    this.currentPage = 5; // Reset to first page when searching
 
-  toggleFilterDropdown(): void {
-    this.showFilterDropdown = !this.showFilterDropdown;
   }
 
   onFilterChange(): void {
-    this.currentPage = 1; // Reset to first page when filtering
     this.applyFilters();
+    this.currentPage = 5; // Reset to first page when filtering
+
   }
 
   clearFilters(): void {
     this.searchTerm = '';
-    this.selectedJoinedMonth = '';
-    this.selectedJoinedYear = '';
-    this.showFilterDropdown = false;
     this.currentPage = 1; // Reset to first page when clearing filters
     this.loadUsers(); // Reload data without filters
   }
 
   private applyFilters(): void {
-    // For API-based filtering, we'll apply filters locally for now
-    // In a real implementation, you might want to send filter parameters to the API
     this.filteredUsers = this.users.filter(user => {
       // Search filter
       const searchMatch = !this.searchTerm || 
-        user.firstName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        user.lastName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         user.userName.toLowerCase().includes(this.searchTerm.toLowerCase());
 
-
-
-      // Joined date filter
-       let dateMatch = true;
-       if (this.selectedJoinedMonth || this.selectedJoinedYear) {
-         if (user.joinedDate) {
-           const joinedDate = new Date(user.joinedDate);
-           if (!isNaN(joinedDate.getTime())) { // Check if date is valid
-             const joinedMonth = joinedDate.getMonth() + 1; // getMonth() returns 0-11
-             const joinedYear = joinedDate.getFullYear();
-
-             const monthMatch = !this.selectedJoinedMonth || joinedMonth.toString() === this.selectedJoinedMonth;
-             const yearMatch = !this.selectedJoinedYear || joinedYear.toString() === this.selectedJoinedYear;
-             
-             dateMatch = monthMatch && yearMatch;
-           } else {
-             dateMatch = false; // Invalid date format
-           }
-         } else {
-           dateMatch = false; // If no joined date, exclude from filtered results when date filter is applied
-         }
-       }
-
-      return searchMatch && dateMatch;
+      return searchMatch;
     });
 
     // Don't call updatePagination here since we're using API-based pagination
