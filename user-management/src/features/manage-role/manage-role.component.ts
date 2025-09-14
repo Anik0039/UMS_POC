@@ -92,64 +92,6 @@ interface Service {
             </div>
           </div>
 
-          <!-- Roles Dropdown -->
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-foreground flex items-center space-x-2">
-              <lucide-angular [img]="shieldIcon" class="h-4 w-4"></lucide-angular>
-              <span>Select Role</span>
-            </label>
-            <div class="relative">
-              <div class="relative">
-                <lucide-angular [img]="searchIcon" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"></lucide-angular>
-                <input
-                  type="text"
-                  [(ngModel)]="roleSearchTerm"
-                  (input)="filterRoles()"
-                  (focus)="showRoleDropdown = true"
-                  placeholder="Search roles..."
-                  class="w-full pl-10 pr-4 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                />
-              </div>
-              
-              <!-- Roles Dropdown List -->
-              <div 
-                *ngIf="showRoleDropdown && filteredRoles.length > 0" 
-                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
-              >
-                <div 
-                  *ngFor="let role of filteredRoles" 
-                  (click)="selectRole(role)"
-                  class="px-4 py-2 hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border last:border-b-0"
-                >
-                  <div class="font-medium">{{ role.name }}</div>
-                  <div *ngIf="role.description" class="text-sm text-muted-foreground">{{ role.description }}</div>
-                </div>
-              </div>
-              
-              <!-- No roles found -->
-              <div 
-                *ngIf="showRoleDropdown && filteredRoles.length === 0 && roleSearchTerm" 
-                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg p-4 text-center text-muted-foreground"
-              >
-                No roles found
-              </div>
-              
-              <!-- Loading roles -->
-              <div 
-                *ngIf="loadingRoles" 
-                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg p-4 text-center text-muted-foreground"
-              >
-                Loading roles...
-              </div>
-            </div>
-            
-            <!-- Selected Role Display -->
-            <div *ngIf="selectedRole" class="mt-2 p-3 bg-muted rounded-md">
-              <div class="font-medium text-foreground">{{ selectedRole.name }}</div>
-              <div *ngIf="selectedRole.description" class="text-sm text-muted-foreground">{{ selectedRole.description }}</div>
-            </div>
-          </div>
-
           <!-- Services Dropdown -->
           <div class="space-y-2">
             <label class="text-sm font-medium text-foreground flex items-center space-x-2">
@@ -205,6 +147,63 @@ interface Service {
             <div *ngIf="selectedService" class="mt-2 p-3 bg-muted rounded-md">
               <div class="font-medium text-foreground">{{ selectedService.name }}</div>
               <div *ngIf="selectedService.description" class="text-sm text-muted-foreground">{{ selectedService.description }}</div>
+            </div>
+          </div>
+             <!-- Roles Dropdown -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-foreground flex items-center space-x-2">
+              <lucide-angular [img]="shieldIcon" class="h-4 w-4"></lucide-angular>
+              <span>Select Role</span>
+            </label>
+            <div class="relative">
+              <div class="relative">
+                <lucide-angular [img]="searchIcon" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"></lucide-angular>
+                <input
+                  type="text"
+                  [(ngModel)]="roleSearchTerm"
+                  (input)="filterRoles()"
+                  (focus)="showRoleDropdown = true"
+                  placeholder="Search roles..."
+                  class="w-full pl-10 pr-4 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                />
+              </div>
+              
+              <!-- Roles Dropdown List -->
+              <div 
+                *ngIf="showRoleDropdown && filteredRoles.length > 0" 
+                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
+              >
+                <div 
+                  *ngFor="let role of filteredRoles" 
+                  (click)="selectRole(role)"
+                  class="px-4 py-2 hover:bg-accent hover:text-accent-foreground cursor-pointer border-b border-border last:border-b-0"
+                >
+                  <div class="font-medium">{{ role.name }}</div>
+                  <div *ngIf="role.description" class="text-sm text-muted-foreground">{{ role.description }}</div>
+                </div>
+              </div>
+              
+              <!-- No roles found -->
+              <div 
+                *ngIf="showRoleDropdown && filteredRoles.length === 0 && roleSearchTerm" 
+                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg p-4 text-center text-muted-foreground"
+              >
+                No roles found
+              </div>
+              
+              <!-- Loading roles -->
+              <div 
+                *ngIf="loadingRoles" 
+                class="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg p-4 text-center text-muted-foreground"
+              >
+                Loading roles...
+              </div>
+            </div>
+            
+            <!-- Selected Role Display -->
+            <div *ngIf="selectedRole" class="mt-2 p-3 bg-muted rounded-md">
+              <div class="font-medium text-foreground">{{ selectedRole.name }}</div>
+              <div *ngIf="selectedRole.description" class="text-sm text-muted-foreground">{{ selectedRole.description }}</div>
             </div>
           </div>
         </div>

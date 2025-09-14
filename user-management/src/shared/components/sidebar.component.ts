@@ -46,12 +46,12 @@ export interface SidebarItem {
             >
               <lucide-angular [img]="item.icon" class="h-4 w-4"></lucide-angular>
               <span>{{ item.title }}</span>
-              <span 
+              <!-- <span 
                 *ngIf="item.badge" 
                 class="ml-auto rounded-full bg-primary px-2 py-1 text-xs text-primary-foreground"
               >
                 {{ item.badge }}
-              </span>
+              </span> -->
             </a>
           </div>
         </div>
@@ -115,7 +115,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
       title: 'Users',
       icon: Users,
       href: '/dashboard/users',
-      badge: this.userCount.toString()
+      //badge: this.userCount.toString()
     },
     {
       title: 'Manage Role',

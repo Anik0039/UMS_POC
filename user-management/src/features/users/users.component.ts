@@ -142,8 +142,8 @@ export interface User {
             <thead>
               <tr class="border-b bg-gray-800 text-white sticky top-0 z-10">
                 <th class="h-12 px-4 text-left align-middle font-medium">Picture</th>
+                <!-- <th class="h-12 px-4 text-left align-middle font-medium">User Id</th> -->
                 <th class="h-12 px-4 text-left align-middle font-medium">User Id</th>
-                <th class="h-12 px-4 text-left align-middle font-medium">User Name</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">Full Name</th>
                 <!-- <th class="h-12 px-4 text-left align-middle font-medium">Date of Birth</th> -->
                 <th class="h-12 px-4 text-left align-middle font-medium">Contact No</th>
@@ -161,7 +161,7 @@ export interface User {
                     <span *ngIf="!user.picture" class="h-10 w-10 rounded-full bg-muted flex items-center justify-center">{{ user.initials }}</span>
                   </div>
                 </td>
-                <td class="p-4 align-middle">{{ user.id || '-' }}</td>
+                <!-- <td class="p-4 align-middle">{{ user.id || '-' }}</td> -->
                 <td class="p-4 align-middle">{{ user.userName || '-' }}</td>
                 <td class="p-4 align-middle">{{ user.fullName || '-' }}</td>
         
@@ -189,7 +189,7 @@ export interface User {
         <div class="flex items-center justify-between p-4 border-t bg-gradient-to-r from-muted/20 to-muted/40 backdrop-blur-sm">
           <div class="flex items-center space-x-4">
             <div class="text-sm text-muted-foreground font-medium">
-              Showing <span class="text-foreground font-semibold">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> to <span class="text-foreground font-semibold">{{ Math.min(currentPage * itemsPerPage, totalRecords) }}</span> of <span class="text-foreground font-semibold">{{ totalRecords }}</span> users
+              Showing <span class="text-foreground font-semibold">{{ totalRecords }}</span> to <span class="text-foreground font-semibold">{{ Math.min(currentPage * itemsPerPage, totalRecords) }}</span> of <span class="text-foreground font-semibold">{{ totalRecords }}</span> users
             </div>
             <!-- Entries per page selector -->
             <div class="flex items-center space-x-2">
@@ -456,19 +456,7 @@ export interface User {
                 </div>
               </div>
 
-              <!-- Email Verified -->
-              <div *ngIf="!isEditMode" class="space-y-2">
-                <label class="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    [(ngModel)]="newUser.emailVerified"
-                    class="rounded border-input"
-                  />
-                  <span class="text-sm font-medium">Email Verified</span>
-                </label>
-              </div>
-
-              <!-- Set Password -->
+               <!-- Set Password -->
               <div *ngIf="!isEditMode" class="space-y-2">
                 <label class="flex items-center space-x-2">
                   <input
@@ -479,6 +467,19 @@ export interface User {
                   <span class="text-sm font-medium">Set Password</span>
                 </label>
               </div>
+              <!-- Email Verified -->
+              <div class="space-y-2">
+                <!-- <label class="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="newUser.emailVerified"
+                    class="rounded border-input"
+                  />
+                  <span class="text-sm font-medium">Email Verified</span>
+                </label> -->
+              </div>
+
+             
 
               <!-- Password (conditional) -->
               <div *ngIf="newUser.setPassword && !isEditMode" class="space-y-2">
@@ -597,7 +598,7 @@ export class UsersComponent implements OnInit {
     contactNo: '',
     email: '',
     address: '',
-    emailVerified: false,
+    emailVerified: true,
     setPassword: false,
     password: '',
     confirmPassword: ''
@@ -605,7 +606,7 @@ export class UsersComponent implements OnInit {
 
   // Pagination properties
   currentPage = 1;
-  itemsPerPage = 5;
+  itemsPerPage = 100;
   totalPages = 0;
   totalRecords = 0;
 
@@ -699,7 +700,8 @@ export class UsersComponent implements OnInit {
   }
 
   transformApiUsers(apiUsers: ApiUser[]): User[] {
-    return apiUsers.map(apiUser => {
+  return apiUsers
+    .map(apiUser => {
       const firstName = apiUser.firstName || '';
       const middleName = apiUser.middleName || '';
       const lastName = apiUser.lastName || '';
@@ -708,32 +710,77 @@ export class UsersComponent implements OnInit {
         .map(word => word.charAt(0).toUpperCase())
         .join('')
         .substring(0, 2);
-      
+
+      const numericId = apiUser.id ? Number(apiUser.id) : 0; // ensure numeric
+
       return {
-        id: apiUser.id?.toString() || '',
+        id: numericId.toString(),       // keep string for UI if needed
+        numericId: numericId,           // 👈 helper field for sorting
         userName: apiUser.userName || '',
         picture: apiUser.picture || '',
-        firstName: firstName,
-        middleName: middleName,
-        lastName: lastName,
+        firstName,
+        middleName,
+        lastName,
         fullName: apiUser.fullName || '',
         dateOfBirth: this.formatDate(apiUser.dateOfBirth),
         contactNo: apiUser.contactNo || '',
         email: apiUser.email || '',
         address: apiUser.address || '',
         status: apiUser.status || false,
-        initials: initials,
+        initials,
         name: `${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`.trim(),
-        joinedDate: this.formatDate(apiUser.dateOfBirth) || new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        }),
-        emailVerified: false,
-        setPassword: false
-       };
-     });
-  }
+        joinedDate:
+          this.formatDate(apiUser.dateOfBirth) ||
+          new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+        emailVerified: true,
+        setPassword: false,
+      };
+    })
+    .sort((a, b) => b.numericId - a.numericId) // ✅ sort using numericId
+    .map(({ numericId, ...user }) => user);    // remove helper before return
+}
+
+
+  // transformApiUsers(apiUsers: ApiUser[]): User[] {
+  //   return apiUsers.map(apiUser => {
+  //     const firstName = apiUser.firstName || '';
+  //     const middleName = apiUser.middleName || '';
+  //     const lastName = apiUser.lastName || '';
+  //     const initials = [firstName, middleName, lastName]
+  //       .filter(Boolean)
+  //       .map(word => word.charAt(0).toUpperCase())
+  //       .join('')
+  //       .substring(0, 2);
+      
+  //     return {
+  //       id: apiUser.id?.toString() || '',
+  //       userName: apiUser.userName || '',
+  //       picture: apiUser.picture || '',
+  //       firstName: firstName,
+  //       middleName: middleName,
+  //       lastName: lastName,
+  //       fullName: apiUser.fullName || '',
+  //       dateOfBirth: this.formatDate(apiUser.dateOfBirth),
+  //       contactNo: apiUser.contactNo || '',
+  //       email: apiUser.email || '',
+  //       address: apiUser.address || '',
+  //       status: apiUser.status || false,
+  //       initials: initials,
+  //       name: `${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`.trim(),
+  //       joinedDate: this.formatDate(apiUser.dateOfBirth) || new Date().toLocaleDateString('en-US', {
+  //         month: 'short',
+  //         day: 'numeric',
+  //         year: 'numeric'
+  //       }),
+  //       emailVerified: true,
+  //       setPassword: false
+  //      };
+  //    });
+  // }
 
   generateInitials(firstName: string, middleName: string, lastName: string): string {
     return [firstName, middleName, lastName]
@@ -878,7 +925,7 @@ export class UsersComponent implements OnInit {
       email: '',
       address: '',
 
-      emailVerified: false,
+      emailVerified: true,
       setPassword: false,
       password: '',
       confirmPassword: ''
@@ -897,7 +944,7 @@ export class UsersComponent implements OnInit {
       contactNo: '',
       email: '',
       address: '',
-      emailVerified: false,
+      emailVerified: true,
       setPassword: false,
       password: '',
       confirmPassword: ''
@@ -951,7 +998,9 @@ export class UsersComponent implements OnInit {
         address: this.newUser.address,
         picture: this.newUser.picture || '',
         password: this.newUser.password,
-        confirmPassword: this.newUser.password
+        confirmPassword: this.newUser.password, 
+        setPassword: this.newUser.setPassword,
+        emailVerified: true,
       };
 
       if (this.isEditMode) {
@@ -976,49 +1025,59 @@ export class UsersComponent implements OnInit {
         
         if (response) {
           // Generate initials from firstName, middleName, lastName
-          const initials = [this.newUser.firstName, this.newUser.middleName, this.newUser.lastName]
-            .filter(Boolean)
-            .map(word => word.charAt(0).toUpperCase())
-            .join('')
-            .substring(0, 2);
+          // const initials = [this.newUser.firstName, this.newUser.middleName, this.newUser.lastName]
+          //   .filter(Boolean)
+          //   .map(word => word.charAt(0).toUpperCase())
+          //   .join('')
+          //   .substring(0, 2);
 
-          // Add new user to the users array with API response data
-          const newUserEntry: User = {
-            id: response.id?.toString() || '',
-            picture: response.picture || this.newUser.picture,
-            userName: response.userName || this.newUser.userName,
-            firstName: response.firstName,
-            middleName: response.middleName,
-            lastName: response.lastName,
-            fullName: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
-            dateOfBirth: response.dateOfBirth,
-            contactNo: response.contactNo,
-            email: response.email,
-            address: response.address,
-            status: response.status || true,
-            initials: initials,
-            name: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
-            joinedDate: new Date().toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            }),
-            emailVerified: this.newUser.emailVerified,
-            setPassword: this.newUser.setPassword
-          };
+          // // Add new user to the users array with API response data
+          // const newUserEntry: User = {
+          //   id: response.id?.toString() || '',
+          //   picture: response.picture || this.newUser.picture,
+          //   userName: response.userName || this.newUser.userName,
+          //   firstName: response.firstName,
+          //   middleName: response.middleName,
+          //   lastName: response.lastName,
+          //   fullName: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
+          //   dateOfBirth: response.dateOfBirth,
+          //   contactNo: response.contactNo,
+          //   email: response.email,
+          //   address: response.address,
+          //   status: response.status || true,
+          //   initials: initials,
+          //   name: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
+          //   joinedDate: new Date().toLocaleDateString('en-US', {
+          //     month: 'short',
+          //     day: 'numeric',
+          //     year: 'numeric'
+          //   }),
+          //   emailVerified: this.newUser.emailVerified,
+          //   setPassword: this.newUser.setPassword
+          // };
 
-          this.users.unshift(newUserEntry); // Add to beginning of array
-          this.totalRecords++; // Increment total count
-          this.userCountService.updateUserCount(this.totalRecords); // Update sidebar count
-          this.applyFilters(); // Reapply filters to include new user
-          this.updatePagination(); // Update pagination after adding user
-          this.closeUserForm();
+          // this.users.unshift(newUserEntry); // Add to beginning of array
+          // this.totalRecords++; // Increment total count
+          // this.userCountService.updateUserCount(this.totalRecords); // Update sidebar count
+          // this.applyFilters(); // Reapply filters to include new user
+          // this.updatePagination(); // Update pagination after adding user
+          // this.closeUserForm();
+
+          if(response.isSuccess){
+            this.closeUserForm();
+            this.resetUserForm();
+            this.showSuccessNotification(`User "${userData.userName}" has been successfully created!`);
+            this.loadUsers();
+          }
+          else{
+            this.showFailureNotification(response.value);
+          }
           
           // Show success message
-          this.showSuccessNotification(`User "${newUserEntry.name}" has been successfully created!`);
+          
           
           // Reset form
-          this.resetUserForm();
+          //this.resetUserForm();
         }
       });
       }
@@ -1041,7 +1100,7 @@ export class UsersComponent implements OnInit {
       dateOfBirth: userData.dateOfBirth,
       contactNo: userData.contactNo,
       email: userData.email,
-      emailVerified: userData.emailVerified || false,
+      emailVerified: userData.emailVerified || true,
       address: userData.address,
       picture: userData.picture || ''
     };

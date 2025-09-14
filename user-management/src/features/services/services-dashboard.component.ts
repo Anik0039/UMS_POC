@@ -335,7 +335,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
     const startTime = Date.now();
     
     this.authApiService.getSsoToken({ clientId: service.clientId }).subscribe({
-      next: (tokenResponse: any) => {
+      next: (tokenResponse: { token?: string; redirectUrl?: string }) => {
         const duration = Date.now() - startTime;
         this.addDebugLog(`✅ New SSO token generated for ${service.clientId} in ${duration}ms: ${JSON.stringify(tokenResponse)}`);
         this.addDebugLog(`🔑 Fresh token ready for service redirect`);
@@ -473,7 +473,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
   /**
    * Get dynamic service icon based on service type and clientId
    */
-  getServiceIcon(service: PermittedService): any {
+  getServiceIcon(service: PermittedService): typeof ExternalLink {
     const clientId = service.clientId?.toLowerCase() || '';
     const serviceName = service.name?.toLowerCase() || '';
     
@@ -483,7 +483,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
     }
     
     // Icon mapping based on common service patterns
-    const iconMap: { [key: string]: any } = {
+    const iconMap: { [key: string]: typeof ExternalLink } = {
       // Authentication & Security
       'auth': this.lockIcon,
       'sso': this.lockIcon,
@@ -903,41 +903,54 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
   /**
    * Get user-friendly error message based on error type
    */
-  private getErrorMessage(error: any): string {
+  private getErrorMessage(error: unknown): string {
     if (!error) return 'Unknown error occurred';
-    
-    // Network errors
-    if (error.status === 0 || error.name === 'NetworkError') {
-      return 'Network connection failed. Please check your internet connection.';
+
+    // Use type guards to safely access properties
+    if (typeof error === 'object' && error !== null) {
+      const err = error as { status?: number; name?: string; message?: string; error?: { message?: string }; statusText?: string; url?: string };
+
+      // Network errors
+      if (err.status === 0 || err.name === 'NetworkError') {
+        return 'Network connection failed. Please check your internet connection.';
+      }
+
+      // Authentication errors
+      if (err.status === 401) {
+        return 'Authentication failed. Please log in again.';
+      }
+
+      // Authorization errors
+      if (err.status === 403) {
+        return 'Access denied. You do not have permission to view services.';
+      }
+
+      // Not found errors
+      if (err.status === 404) {
+        return 'Services endpoint not found. Please contact system administrator.';
+      }
+
+      // Server errors
+      if (typeof err.status === 'number' && err.status >= 500) {
+        return 'Server error occurred. Please try again later or contact support.';
+      }
+
+      // Timeout errors
+      if (err.name === 'TimeoutError' || err.message?.includes('timeout')) {
+        return 'Request timed out. Please check your connection and try again.';
+      }
+
+      // Default error message
+      return err.message || err.error?.message || 'Failed to load services. Please try again.';
     }
-    
-    // Authentication errors
-    if (error.status === 401) {
-      return 'Authentication failed. Please log in again.';
+
+    // If error is a string
+    if (typeof error === 'string') {
+      return error;
     }
-    
-    // Authorization errors
-    if (error.status === 403) {
-      return 'Access denied. You do not have permission to view services.';
-    }
-    
-    // Not found errors
-    if (error.status === 404) {
-      return 'Services endpoint not found. Please contact system administrator.';
-    }
-    
-    // Server errors
-    if (error.status >= 500) {
-      return 'Server error occurred. Please try again later or contact support.';
-    }
-    
-    // Timeout errors
-    if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
-      return 'Request timed out. Please check your connection and try again.';
-    }
-    
-    // Default error message
-    return error.message || error.error?.message || 'Failed to load services. Please try again.';
+
+    // Default fallback
+    return 'Failed to load services. Please try again.';
   }
 
   /**
@@ -1022,6 +1035,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
         // Initialize status checking after services are loaded
         this.initializeStatusChecking();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       error: (error: any) => {
         this.addDebugLog(`❌ API call failed: ${JSON.stringify(error)}`);
         this.addDebugLog(`Error details: ${JSON.stringify({

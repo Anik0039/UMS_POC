@@ -10,7 +10,7 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, ButtonComponent, ThemeToggleComponent],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ThemeToggleComponent],
   template: `
     <div class="space-y-6">
       <!-- Page header -->

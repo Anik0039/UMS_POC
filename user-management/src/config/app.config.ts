@@ -31,7 +31,8 @@ export const developmentConfig: AppConfig = {
 // Production Configuration
 export const productionConfig: AppConfig = {
   api: {
-    baseUrl: 'http://10.11.201.85:5001', // Your production API URL
+   // baseUrl: 'http://10.11.201.85:5001', // Your production API URL
+     baseUrl: 'http://kong.158.178.225.131.nip.io/ums', // Your production API URL
     timeout: 30000,
     retries: 3
   },
