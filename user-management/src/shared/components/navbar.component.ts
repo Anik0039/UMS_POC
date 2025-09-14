@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { LucideAngularModule, Menu, Search, Bell, User, LogOut } from 'lucide-angular';
+import { LucideAngularModule, Menu, User, LogOut } from 'lucide-angular';
 import { ThemeToggleComponent } from './theme-toggle.component';
 import { AuthService, User as AuthUser } from '../../services/auth.service';
 import { SSOService } from '../../services/sso.service';
@@ -33,23 +33,6 @@ import { Subscription } from 'rxjs';
 
         <!-- Right Section -->
         <div class="flex items-center space-x-4 ml-auto flex-shrink-0">
-          <div class="relative hidden md:block">
-            <lucide-angular [img]="searchIcon" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"></lucide-angular>
-            <input
-              type="search"
-              placeholder="Search..."
-              class="h-9 w-64 rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-          </div>
-
-          <!-- Notifications -->
-          <button class="relative rounded-full p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-            <lucide-angular [img]="bellIcon" class="h-5 w-5"></lucide-angular>
-            <span class="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-xs text-destructive-foreground flex items-center justify-center">
-              3
-            </span>
-            <span class="sr-only">Notifications</span>
-          </button>
 
           <!-- Services menu removed - now handled by services dashboard -->
 
@@ -124,8 +107,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private userSubscription: Subscription = new Subscription();
 
   menuIcon = Menu;
-  searchIcon = Search;
-  bellIcon = Bell;
   userIcon = User;
   logoutIcon = LogOut;
 
@@ -150,12 +131,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   navigateToProfile(): void {
-    this.router.navigate(['/profile']);
+    this.router.navigate(['/dashboard/profile']);
     this.isUserMenuOpen = false;
   }
 
   navigateToSettings(): void {
-    this.router.navigate(['/settings']);
+    this.router.navigate(['/dashboard/settings']);
     this.isUserMenuOpen = false;
   }
 

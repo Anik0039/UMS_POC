@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { LucideAngularModule, Plus, Search, Filter, X, Upload, User, Edit, Trash2, ChevronDown } from 'lucide-angular';
 import { ButtonComponent } from '../../shared/components/button.component';
 import { UserApiService, ApiUser, ApiUsersResponse } from '../../services/user-api.service';
@@ -10,20 +11,25 @@ import { UserCountService } from '../../services/user-count.service';
 import { catchError, of } from 'rxjs';
 
 export interface User {
+  id: string;
+  userName: string;
   picture: string;
-  userId: string;
   firstName: string;
   middleName: string;
   lastName: string;
+  fullName: string;
   dateOfBirth: string;
   contactNo: string;
   email: string;
   address: string;
+  status: boolean;
   initials: string;
   name: string;
-  role: string;
-  status: string;
   joinedDate: string;
+  emailVerified: boolean;
+  setPassword: boolean;
+  password?: string;
+  confirmPassword?: string;
 }
 
 @Component({
@@ -71,41 +77,7 @@ export interface User {
           <!-- Filter Dropdown -->
           <div *ngIf="showFilterDropdown" class="absolute right-0 mt-2 w-56 rounded-md border bg-background shadow-lg z-50">
             <div class="p-4 space-y-4">
-              <!-- Status Filter -->
-              <div>
-                <label class="text-sm font-medium mb-2 block" for="filterStatus">Status</label>
-                <select 
-                  id="filterStatus"
-                  [(ngModel)]="selectedStatus"
-                  (change)="onFilterChange()"
-                  class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              </div>
-              
-              <!-- Role Filter -->
-              <div>
-                <label class="text-sm font-medium mb-2 block" for="filterRole">Role</label>
-                <select 
-                  id="filterRole"
-                  [(ngModel)]="selectedRole"
-                  (change)="onFilterChange()"
-                  class="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">All Roles</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Moderator">Moderator</option>
-                  <option value="User">User</option>
-                </select>
-                <div *ngIf="validationErrors['role']" class="flex items-center space-x-1 text-sm text-destructive">
-                  <span class="text-destructive">⚠</span>
-                  <span>{{ validationErrors['role'] }}</span>
-                </div>
-              </div>
+
               
               <!-- Joined Date Filter -->
               <div>
@@ -167,6 +139,52 @@ export interface User {
         </div>
       </div>
 
+      <!-- Success Message -->
+       <div *ngIf="showSuccessMessage" class="fixed top-4 right-4 z-50 max-w-md">
+         <div class="rounded-lg border border-green-200 bg-green-50 p-4 shadow-lg animate-in slide-in-from-right-full duration-300">
+           <div class="flex items-start space-x-3">
+             <div class="flex-shrink-0">
+               <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+               </svg>
+             </div>
+             <div class="flex-1">
+               <h3 class="text-sm font-medium text-green-800">Success!</h3>
+               <p class="mt-1 text-sm text-green-700">{{ successMessage }}</p>
+             </div>
+             <div class="flex-shrink-0">
+               <button (click)="hideSuccessMessage()" class="inline-flex rounded-md bg-green-50 p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 focus:ring-offset-green-50">
+                 <span class="sr-only">Dismiss</span>
+                 <lucide-angular [img]="closeIcon" class="h-4 w-4"></lucide-angular>
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- Failure Message -->
+       <div *ngIf="showFailureMessage" class="fixed top-4 right-4 z-50 max-w-md">
+         <div class="rounded-lg border border-red-200 bg-red-50 p-4 shadow-lg animate-in slide-in-from-right-full duration-300">
+           <div class="flex items-start space-x-3">
+             <div class="flex-shrink-0">
+               <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+               </svg>
+             </div>
+             <div class="flex-1">
+               <h3 class="text-sm font-medium text-red-800">Error!</h3>
+               <p class="mt-1 text-sm text-red-700">{{ failureMessage }}</p>
+             </div>
+             <div class="flex-shrink-0">
+               <button (click)="hideFailureMessage()" class="inline-flex rounded-md bg-red-50 p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50">
+                 <span class="sr-only">Dismiss</span>
+                 <lucide-angular [img]="closeIcon" class="h-4 w-4"></lucide-angular>
+               </button>
+             </div>
+           </div>
+         </div>
+       </div>
+
       <!-- Error State -->
       <div *ngIf="error && !loading" class="rounded-md border border-destructive bg-destructive/10 p-4">
         <div class="flex items-center space-x-2">
@@ -188,16 +206,13 @@ export interface User {
             <thead>
               <tr class="border-b bg-gray-800 text-white sticky top-0 z-10">
                 <th class="h-12 px-4 text-left align-middle font-medium">Picture</th>
-                <th class="h-12 px-4 text-left align-middle font-medium">User ID</th>
-                <th class="h-12 px-4 text-left align-middle font-medium">First Name</th>
-                <!-- <th class="h-12 px-4 text-left align-middle font-medium">Middle Name</th> -->
-                <th class="h-12 px-4 text-left align-middle font-medium">Last Name</th>
+                <th class="h-12 px-4 text-left align-middle font-medium">User Id</th>
+                <th class="h-12 px-4 text-left align-middle font-medium">User Name</th>
+                <th class="h-12 px-4 text-left align-middle font-medium">Full Name</th>
                 <!-- <th class="h-12 px-4 text-left align-middle font-medium">Date of Birth</th> -->
                 <th class="h-12 px-4 text-left align-middle font-medium">Contact No</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">Email</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">Address</th>
-                <!-- <th class="h-12 px-4 text-left align-middle font-medium">Role</th> -->
-                <th class="h-12 px-4 text-left align-middle font-medium">Status</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">D.O.B</th>
                 <th class="h-12 px-4 text-left align-middle font-medium">Actions</th>
               </tr>
@@ -210,28 +225,18 @@ export interface User {
                     <span *ngIf="!user.picture" class="h-10 w-10 rounded-full bg-muted flex items-center justify-center">{{ user.initials }}</span>
                   </div>
                 </td>
-                <td class="p-4 align-middle">{{ user.userId || '-' }}</td>
-                <td class="p-4 align-middle">{{ user.firstName || '-' }}</td>
-                <!-- <td class="p-4 align-middle">{{ user.middleName || '-' }}</td> -->
-                <td class="p-4 align-middle">{{ user.lastName || '-' }}</td>
-                <!-- <td class="p-4 align-middle">{{ user.dateOfBirth || '-' }}</td> -->
+                <td class="p-4 align-middle">{{ user.id || '-' }}</td>
+                <td class="p-4 align-middle">{{ user.userName || '-' }}</td>
+                <td class="p-4 align-middle">{{ user.fullName || '-' }}</td>
+        
                 <td class="p-4 align-middle">{{ user.contactNo || '-' }}</td>
                 <td class="p-4 align-middle text-muted-foreground">{{ user.email || '-' }}</td>
                 <td class="p-4 align-middle">{{ user.address || '-' }}</td>
-                <!-- <td class="p-4 align-middle">
-                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" [ngClass]="getRoleBadgeClass(user.role)">
-                    {{ user.role || '-' }}
-                  </span>
-                </td> -->
-                <td class="p-4 align-middle">
-                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" [ngClass]="getStatusBadgeClass(user.status)">
-                    {{ user.status || '-' }}
-                  </span>
-                </td>
+               
                 <td class="p-4 align-middle text-muted-foreground">{{ user.joinedDate || '-' }}</td>
                 <td class="p-4 align-middle">
                   <div class="flex items-center space-x-2">
-                    <button class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-8 w-8" title="Edit user">
+                    <button (click)="editUser(user.userName)" class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-8 w-8" title="Edit user">
                       <lucide-angular [img]="editIcon" class="h-4 w-4"></lucide-angular>
                     </button>
                     <button class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive" title="Delete user">
@@ -340,8 +345,8 @@ export interface User {
           <!-- Modal Header -->
           <div class="flex items-center justify-between p-6 border-b">
             <div>
-              <h2 class="text-xl font-semibold">Create New User Profile</h2>
-              <p class="text-sm text-muted-foreground mt-1">Fill in the details below to create a new user account.</p>
+              <h2 class="text-xl font-semibold">{{ isEditMode ? 'Edit User Profile' : 'Create New User Profile' }}</h2>
+              <p class="text-sm text-muted-foreground mt-1">{{ isEditMode ? 'Update the details below to modify the user account.' : 'Fill in the details below to create a new user account.' }}</p>
             </div>
             <button (click)="closeUserForm()" class="rounded-md p-2 hover:bg-accent">
               <lucide-angular [img]="closeIcon" class="h-4 w-4"></lucide-angular>
@@ -380,20 +385,20 @@ export interface User {
 
             <!-- Form Fields -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- User ID -->
+              <!-- User Name -->
               <div class="space-y-2">
-                <label class="text-sm font-medium" for="userId">User ID</label>
+                <label class="text-sm font-medium" for="userName">User Name</label>
                 <input
-                  id="userId"
+                  id="userName"
                   type="text"
-                  [(ngModel)]="newUser.userId"
-                  (input)="onFieldChange('userId')"
+                  [(ngModel)]="newUser.userName"
+                  (input)="onFieldChange('userName')"
                   placeholder="e.g., @jeffsdeposit"
-                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['userId'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['userName'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
-                <div *ngIf="validationErrors['userId']" class="flex items-center space-x-1 text-sm text-destructive">
+                <div *ngIf="validationErrors['userName']" class="flex items-center space-x-1 text-sm text-destructive">
                   <span class="text-destructive">⚠</span>
-                  <span>{{ validationErrors['userId'] }}</span>
+                  <span>{{ validationErrors['userName'] }}</span>
                 </div>
               </div>
 
@@ -421,9 +426,14 @@ export interface User {
                   id="middleName"
                   type="text"
                   [(ngModel)]="newUser.middleName"
+                  (input)="onFieldChange('middleName')"
                   placeholder="e.g., A."
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['middleName'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['middleName']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['middleName'] }}</span>
+                </div>
               </div>
 
               <!-- Last Name -->
@@ -450,8 +460,13 @@ export interface User {
                   id="dateOfBirth"
                   type="date"
                   [(ngModel)]="newUser.dateOfBirth"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  (input)="onFieldChange('dateOfBirth')"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['dateOfBirth'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['dateOfBirth']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['dateOfBirth'] }}</span>
+                </div>
               </div>
 
               <!-- Contact Number -->
@@ -495,13 +510,42 @@ export interface User {
                   id="address"
                   type="text"
                   [(ngModel)]="newUser.address"
+                  (input)="onFieldChange('address')"
                   placeholder="e.g., 123 Main St, City, Country"
-                  class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['address'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
                 />
+                <div *ngIf="validationErrors['address']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['address'] }}</span>
+                </div>
               </div>
 
-              <!-- Password -->
-              <div class="space-y-2 md:col-span-2">
+              <!-- Email Verified -->
+              <div *ngIf="!isEditMode" class="space-y-2">
+                <label class="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="newUser.emailVerified"
+                    class="rounded border-input"
+                  />
+                  <span class="text-sm font-medium">Email Verified</span>
+                </label>
+              </div>
+
+              <!-- Set Password -->
+              <div *ngIf="!isEditMode" class="space-y-2">
+                <label class="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="newUser.setPassword"
+                    class="rounded border-input"
+                  />
+                  <span class="text-sm font-medium">Set Password</span>
+                </label>
+              </div>
+
+              <!-- Password (conditional) -->
+              <div *ngIf="newUser.setPassword && !isEditMode" class="space-y-2">
                 <label class="text-sm font-medium" for="password">Password</label>
                 <input
                   id="password"
@@ -517,50 +561,23 @@ export interface User {
                 </div>
               </div>
 
-              <!-- Role -->
-              <div class="space-y-2">
-                <label class="text-sm font-medium" for="role">Role</label>
-                <select
-                  id="role"
-                  [(ngModel)]="newUser.role"
-                  (change)="onFieldChange('role')"
-                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['role'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
-                >
-                  <option value="">Select a role</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Moderator">Moderator</option>
-                  <option value="User">User</option>
-                </select>
-              </div>
-
-              <!-- Account Status -->
-              <div class="space-y-2">
-                <label class="text-sm font-medium" for="status-active">Account Status</label>
-                <div class="flex space-x-4">
-                  <label class="flex items-center space-x-2 cursor-pointer" for="status-active">
-                    <input
-                      id="status-active"
-                      type="radio"
-                      name="status"
-                      value="Active"
-                      [(ngModel)]="newUser.status"
-                      class="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
-                    />
-                    <span class="px-3 py-1 text-xs font-medium bg-black text-white rounded">Active</span>
-                  </label>
-                  <label class="flex items-center space-x-2 cursor-pointer" for="status-inactive">
-                    <input
-                      id="status-inactive"
-                      type="radio"
-                      name="status"
-                      value="Inactive"
-                      [(ngModel)]="newUser.status"
-                      class="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
-                    />
-                    <span class="px-3 py-1 text-xs font-medium bg-gray-200 text-gray-700 rounded">Inactive</span>
-                  </label>
+              <!-- Confirm Password (conditional) -->
+              <div *ngIf="newUser.setPassword && !isEditMode" class="space-y-2">
+                <label class="text-sm font-medium" for="confirmPassword">Confirm Password</label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  [(ngModel)]="newUser.confirmPassword"
+                  (input)="onFieldChange('confirmPassword')"
+                  placeholder="Confirm your password"
+                  [class]="'h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' + (validationErrors['confirmPassword'] ? 'border-destructive bg-destructive/5 focus-visible:ring-destructive' : 'border-input bg-background focus-visible:ring-ring')"
+                />
+                <div *ngIf="validationErrors['confirmPassword']" class="flex items-center space-x-1 text-sm text-destructive">
+                  <span class="text-destructive">⚠</span>
+                  <span>{{ validationErrors['confirmPassword'] }}</span>
                 </div>
               </div>
+
             </div>
           </div>
 
@@ -574,10 +591,10 @@ export interface User {
             </button>
             <button
               (click)="saveUser()"
-              [disabled]="hasAnyValidationErrors()"
-              [class]="'px-4 py-2 text-sm font-medium rounded-md transition-colors ' + (hasAnyValidationErrors() ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-50' : 'bg-primary text-primary-foreground hover:bg-primary/90')"
+              [disabled]="false"
+              class="px-4 py-2 text-sm font-medium rounded-md transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              Create User
+              {{ isEditMode ? 'Update User' : 'Create User' }}
             </button>
           </div>
         </div>
@@ -591,6 +608,7 @@ export class UsersComponent implements OnInit {
   private authService = inject(AuthService);
   private authApiService = inject(AuthApiService);
   private userCountService = inject(UserCountService);
+  private router = inject(Router);
   
   plusIcon = Plus;
   searchIcon = Search;
@@ -607,6 +625,14 @@ export class UsersComponent implements OnInit {
   showUserForm = false;
   loading = false;
   error: string | null = null;
+  successMessage: string | null = null;
+  showSuccessMessage = false;
+  failureMessage: string | null = null;
+  showFailureMessage = false;
+  
+  // Edit mode properties
+  isEditMode = false;
+  editingUsername = '';
   
   // Validation error tracking
   validationErrors: { [key: string]: string } = {};
@@ -618,21 +644,19 @@ export class UsersComponent implements OnInit {
   private passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   
   // Phone validation regex (basic format)
-  private phoneRegex = /^\+?[1-9]\d{0,15}$/;
+  private phoneRegex = /^\+?[0-9]\d{0,15}$/;
   
   // User ID validation regex (@username format)
   private userIdRegex = /^@[a-zA-Z0-9_]{3,20}$/;
   
   // Search and filter properties
   searchTerm = '';
-  selectedStatus = '';
-  selectedRole = '';
   selectedJoinedMonth = '';
   selectedJoinedYear = '';
   showFilterDropdown = false;
   newUser = {
     picture: '',
-    userId: '',
+    userName: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -640,9 +664,10 @@ export class UsersComponent implements OnInit {
     contactNo: '',
     email: '',
     address: '',
+    emailVerified: false,
+    setPassword: false,
     password: '',
-    role: '',
-    status: 'Active'
+    confirmPassword: ''
   };
 
   // Pagination properties
@@ -741,22 +766,40 @@ export class UsersComponent implements OnInit {
   }
 
   transformApiUsers(apiUsers: ApiUser[]): User[] {
-    return apiUsers.map(apiUser => ({
-      picture: apiUser.picture || '',
-      userId: apiUser.id?.toString() || apiUser.userName || '',
-      firstName: apiUser.firstName || '',
-      middleName: apiUser.middleName || '',
-      lastName: apiUser.lastName || '',
-      dateOfBirth: this.formatDate(apiUser.dateOfBirth),
-      contactNo: apiUser.contactNo || '',
-      email: apiUser.email || '',
-      address: apiUser.address || '',
-      initials: this.generateInitials(apiUser.firstName, apiUser.middleName, apiUser.lastName),
-      name: apiUser.fullName || `${apiUser.firstName} ${apiUser.middleName ? apiUser.middleName + ' ' : ''}${apiUser.lastName}`.trim(),
-      role: 'User', // Default role since API doesn't provide role field
-      status: apiUser.status ? 'Active' : 'Inactive', // Convert boolean to string
-      joinedDate: this.formatDate(apiUser.dateOfBirth) // Use dateOfBirth since createdAt is not available
-    }));
+    return apiUsers.map(apiUser => {
+      const firstName = apiUser.firstName || '';
+      const middleName = apiUser.middleName || '';
+      const lastName = apiUser.lastName || '';
+      const initials = [firstName, middleName, lastName]
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .substring(0, 2);
+      
+      return {
+        id: apiUser.id?.toString() || '',
+        userName: apiUser.userName || '',
+        picture: apiUser.picture || '',
+        firstName: firstName,
+        middleName: middleName,
+        lastName: lastName,
+        fullName: apiUser.fullName || '',
+        dateOfBirth: this.formatDate(apiUser.dateOfBirth),
+        contactNo: apiUser.contactNo || '',
+        email: apiUser.email || '',
+        address: apiUser.address || '',
+        status: apiUser.status || false,
+        initials: initials,
+        name: `${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`.trim(),
+        joinedDate: this.formatDate(apiUser.dateOfBirth) || new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        }),
+        emailVerified: false,
+        setPassword: false
+       };
+     });
   }
 
   generateInitials(firstName: string, middleName: string, lastName: string): string {
@@ -781,153 +824,8 @@ export class UsersComponent implements OnInit {
     }
   }
 
-  // Mock users for fallback (keeping original structure)
-  mockUsers = [
-    {
-      picture: '',
-      userId: 'alicej',
-      firstName: 'Alice',
-      middleName: '',
-      lastName: 'Johnson',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'alice@example.com',
-      address: '',
-      initials: 'AJ',
-      name: 'Alice Johnson',
-      role: 'Admin',
-      status: 'Active',
-      joinedDate: 'Jan 15, 2024'
-    },
-    {
-      picture: '',
-      userId: 'bobsmith',
-      firstName: 'Bob',
-      middleName: '',
-      lastName: 'Smith',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'bob@example.com',
-      address: '',
-      initials: 'BS',
-      name: 'Bob Smith',
-      role: 'User',
-      status: 'Active',
-      joinedDate: 'Jan 12, 2024'
-    },
-    {
-      picture: '',
-      userId: 'carold',
-      firstName: 'Carol',
-      middleName: '',
-      lastName: 'Davis',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'carol@example.com',
-      address: '',
-      initials: 'CD',
-      name: 'Carol Davis',
-      role: 'Moderator',
-      status: 'Inactive',
-      joinedDate: 'Jan 10, 2024'
-    },
-    {
-      picture: '',
-      userId: 'davidw',
-      firstName: 'David',
-      middleName: '',
-      lastName: 'Wilson',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'david@example.com',
-      address: '',
-      initials: 'DW',
-      name: 'David Wilson',
-      role: 'User',
-      status: 'Active',
-      joinedDate: 'Jan 8, 2024'
-    },
-    {
-      picture: '',
-      userId: 'evab',
-      firstName: 'Eva',
-      middleName: '',
-      lastName: 'Brown',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'eva@example.com',
-      address: '',
-      initials: 'EB',
-      name: 'Eva Brown',
-      role: 'User',
-      status: 'Pending',
-      joinedDate: 'Jan 5, 2024'
-    },
-    {
-      picture: '',
-      userId: 'frankm',
-      firstName: 'Frank',
-      middleName: '',
-      lastName: 'Miller',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'frank@example.com',
-      address: '',
-      initials: 'FM',
-      name: 'Frank Miller',
-      role: 'User',
-      status: 'Active',
-      joinedDate: 'Mar 20, 2023'
-    },
-    {
-      picture: '',
-      userId: 'gracet',
-      firstName: 'Grace',
-      middleName: '',
-      lastName: 'Taylor',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'grace@example.com',
-      address: '',
-      initials: 'GT',
-      name: 'Grace Taylor',
-      role: 'Moderator',
-      status: 'Active',
-      joinedDate: 'Jun 15, 2023'
-    },
-    {
-      picture: '',
-      userId: 'henryc',
-      firstName: 'Henry',
-      middleName: '',
-      lastName: 'Clark',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'henry@example.com',
-      address: '',
-      initials: 'HC',
-      name: 'Henry Clark',
-      role: 'User',
-      status: 'Active',
-      joinedDate: 'Sep 10, 2022'
-    },
-    {
-      picture: '',
-      userId: 'irener',
-      firstName: 'Irene',
-      middleName: '',
-      lastName: 'Rodriguez',
-      dateOfBirth: '',
-      contactNo: '',
-      email: 'irene@example.com',
-      address: '',
-      initials: 'IR',
-      name: 'Irene Rodriguez',
-      role: 'Admin',
-      status: 'Active',
-      joinedDate: 'Dec 5, 2022'
-    }
-  ];
+  
+ 
 
   constructor() {
     // Constructor simplified - initialization happens in ngOnInit
@@ -988,31 +886,9 @@ export class UsersComponent implements OnInit {
     this.loadUsers();
   }
 
-  getRoleBadgeClass(role: string): string {
-    switch (role) {
-      case 'Admin':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'Moderator':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'User':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-    }
-  }
 
-  getStatusBadgeClass(status: string): string {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'Inactive':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-    }
-  }
+
+
 
   openUserForm(): void {
     this.showUserForm = true;
@@ -1022,12 +898,45 @@ export class UsersComponent implements OnInit {
   closeUserForm(): void {
     this.showUserForm = false;
     this.resetUserForm();
+    // Reset edit mode state
+    this.isEditMode = false;
+    this.editingUsername = '';
+  }
+
+  showSuccessNotification(message: string): void {
+    this.successMessage = message;
+    this.showSuccessMessage = true;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideSuccessMessage();
+    }, 5000);
+  }
+
+  hideSuccessMessage(): void {
+    this.showSuccessMessage = false;
+    this.successMessage = null;
+  }
+
+  showFailureNotification(message: string): void {
+    this.failureMessage = message;
+    this.showFailureMessage = true;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      this.hideFailureMessage();
+    }, 5000);
+  }
+
+  hideFailureMessage(): void {
+    this.showFailureMessage = false;
+    this.failureMessage = null;
   }
 
   resetForm(): void {
     this.newUser = {
       picture: '',
-      userId: '',
+      userName: '',
       firstName: '',
       middleName: '',
       lastName: '',
@@ -1035,9 +944,11 @@ export class UsersComponent implements OnInit {
       contactNo: '',
       email: '',
       address: '',
+
+      emailVerified: false,
+      setPassword: false,
       password: '',
-      role: '',
-      status: 'Active'
+      confirmPassword: ''
     };
   }
 
@@ -1045,7 +956,7 @@ export class UsersComponent implements OnInit {
     // Reset form
     this.newUser = {
       picture: '',
-      userId: '',
+      userName: '',
       firstName: '',
       middleName: '',
       lastName: '',
@@ -1053,9 +964,10 @@ export class UsersComponent implements OnInit {
       contactNo: '',
       email: '',
       address: '',
+      emailVerified: false,
+      setPassword: false,
       password: '',
-      role: '',
-      status: 'Active'
+      confirmPassword: ''
     };
     this.error = null;
     this.validationErrors = {};
@@ -1078,18 +990,25 @@ export class UsersComponent implements OnInit {
     // Validate all fields before submission
     this.validateAllFields();
     
+    console.log('🔍 Validation errors:', this.validationErrors);
+    console.log('🔍 Has validation errors:', this.hasAnyValidationErrors());
+    
     if (this.hasAnyValidationErrors()) {
+      console.log('❌ Validation errors found, stopping submission');
       this.error = 'Please fix the validation errors before submitting the form.';
       return;
     }
     
+    console.log('🔍 Form valid check:', this.isFormValid());
+    
     if (this.isFormValid()) {
+      console.log('✅ Form is valid, proceeding with submission');
       this.loading = true;
       this.error = null;
 
       // Prepare user data for API call
       const userData = {
-        userName: this.newUser.userId,
+        userName: this.newUser.userName,
         firstName: this.newUser.firstName,
         middleName: this.newUser.middleName || '',
         lastName: this.newUser.lastName,
@@ -1102,7 +1021,12 @@ export class UsersComponent implements OnInit {
         confirmPassword: this.newUser.password
       };
 
-      // Call API to create user
+      if (this.isEditMode) {
+        // Update existing user
+        console.log('📤 Calling handleUserUpdate with data:', userData);
+        this.handleUserUpdate(userData);
+      } else {
+        // Call API to create user
       this.userApiService.createApiUser({
         ...userData,
         name: `${userData.firstName} ${userData.middleName ? userData.middleName + ' ' : ''}${userData.lastName}`.trim()
@@ -1110,6 +1034,7 @@ export class UsersComponent implements OnInit {
         catchError(error => {
           console.error('Error creating user:', error);
           this.error = error.message || 'Failed to create user. Please try again.';
+          this.showFailureNotification(error.message || 'Failed to create user. Please try again.');
           this.loading = false;
           return of(null);
         })
@@ -1125,25 +1050,28 @@ export class UsersComponent implements OnInit {
             .substring(0, 2);
 
           // Add new user to the users array with API response data
-          const newUserEntry = {
+          const newUserEntry: User = {
+            id: response.id?.toString() || '',
             picture: response.picture || this.newUser.picture,
-            userId: response.userName || this.newUser.userId,
+            userName: response.userName || this.newUser.userName,
             firstName: response.firstName,
             middleName: response.middleName,
             lastName: response.lastName,
+            fullName: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
             dateOfBirth: response.dateOfBirth,
             contactNo: response.contactNo,
             email: response.email,
             address: response.address,
+            status: response.status || true,
             initials: initials,
             name: `${response.firstName} ${response.middleName ? response.middleName + ' ' : ''}${response.lastName}`.trim(),
-            role: this.newUser.role,
-            status: response.status ? 'Active' : 'Inactive',
             joinedDate: new Date().toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric'
-            })
+            }),
+            emailVerified: this.newUser.emailVerified,
+            setPassword: this.newUser.setPassword
           };
 
           this.users.unshift(newUserEntry); // Add to beginning of array
@@ -1153,19 +1081,107 @@ export class UsersComponent implements OnInit {
           this.updatePagination(); // Update pagination after adding user
           this.closeUserForm();
           
+          // Show success message
+          this.showSuccessNotification(`User "${newUserEntry.name}" has been successfully created!`);
+          
           // Reset form
           this.resetUserForm();
         }
       });
+      }
+    } else {
+      console.log('❌ Form is not valid, cannot proceed with submission');
+      console.log('🔍 Form data:', this.newUser);
+      this.loading = false;
     }
+  }
+
+  // Handle user update with API call
+  handleUserUpdate(userData: any): void {
+    console.log('📤 Updating user via API:', this.editingUsername, userData);
+
+    // Prepare API payload
+    const apiPayload = {
+      firstName: userData.firstName,
+      middleName: userData.middleName || '',
+      lastName: userData.lastName,
+      dateOfBirth: userData.dateOfBirth,
+      contactNo: userData.contactNo,
+      email: userData.email,
+      emailVerified: userData.emailVerified || false,
+      address: userData.address,
+      picture: userData.picture || ''
+    };
+    
+    console.log('🔗 About to call userApiService.updateUserByUsername with:', {
+      username: this.editingUsername,
+      payload: apiPayload
+    });
+    
+    this.userApiService.updateUserByUsername(this.editingUsername, apiPayload).subscribe({
+      next: (response) => {
+        console.log('✅ User updated successfully:', response);
+        
+        // Find and update the user in the local array
+        const userIndex = this.users.findIndex(user => user.userName === this.editingUsername);
+        if (userIndex !== -1) {
+          // Generate initials from firstName, middleName, lastName
+          const initials = [userData.firstName, userData.middleName, userData.lastName]
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase())
+            .join('')
+            .substring(0, 2);
+
+          // Update the user in the array with API response or form data
+          const updatedUser = response.isSuccess && response.value ? response.value : userData;
+          this.users[userIndex] = {
+            ...this.users[userIndex],
+            picture: updatedUser.picture || userData.picture,
+            userName: updatedUser.userName || userData.userName,
+            firstName: updatedUser.firstName || userData.firstName,
+            middleName: updatedUser.middleName || userData.middleName,
+            lastName: updatedUser.lastName || userData.lastName,
+            fullName: `${updatedUser.firstName || userData.firstName} ${(updatedUser.middleName || userData.middleName) ? (updatedUser.middleName || userData.middleName) + ' ' : ''}${updatedUser.lastName || userData.lastName}`.trim(),
+            dateOfBirth: updatedUser.dateOfBirth || userData.dateOfBirth,
+            contactNo: updatedUser.contactNo || userData.contactNo,
+            email: updatedUser.email || userData.email,
+            address: updatedUser.address || userData.address,
+            initials: initials,
+            name: `${updatedUser.firstName || userData.firstName} ${(updatedUser.middleName || userData.middleName) ? (updatedUser.middleName || userData.middleName) + ' ' : ''}${updatedUser.lastName || userData.lastName}`.trim()
+          };
+
+          this.applyFilters(); // Reapply filters
+          this.updatePagination(); // Update pagination
+          this.closeUserForm();
+          
+          // Show success message
+          this.showSuccessNotification(`User "${this.users[userIndex].name}" has been successfully updated!`);
+          
+          // Reset form and edit state
+          this.resetUserForm();
+          this.isEditMode = false;
+          this.editingUsername = '';
+        } else {
+          this.error = 'User not found in local list';
+          this.showFailureNotification('User not found in local list');
+        }
+        
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('❌ Error updating user:', error);
+        this.error = error.message || 'Failed to update user';
+        this.showFailureNotification(error.message || 'Failed to update user');
+        this.loading = false;
+      }
+    });
   }
 
   // Validation methods
   validateField(fieldName: string, value: string): string | null {
     switch (fieldName) {
-      case 'userId':
-        if (!value.trim()) return 'User ID is required';
-        if (!this.userIdRegex.test(value)) return 'User ID must start with @ and contain 3-20 alphanumeric characters or underscores';
+      case 'userName':
+        if (!value.trim()) return 'User Name is required';
         return null;
       
       case 'firstName':
@@ -1178,14 +1194,23 @@ export class UsersComponent implements OnInit {
         if (value.trim().length < 2) return 'Last name must be at least 2 characters';
         return null;
       
+      case 'middleName':
+        // Middle name is optional, so no validation required
+        return null;
+      
       case 'email':
         if (!value.trim()) return 'Email is required';
         if (!this.emailRegex.test(value)) return 'Please enter a valid email address';
         return null;
       
       case 'password':
-        if (!value.trim()) return 'Password is required';
-        if (!this.passwordRegex.test(value)) return 'Password must be at least 8 characters with uppercase, lowercase, number, and special character';
+        if (this.newUser.setPassword && !value.trim()) return 'Password is required when Set Password is enabled';
+        if (this.newUser.setPassword && !this.passwordRegex.test(value)) return 'Password must be at least 8 characters with uppercase, lowercase, number, and special character';
+        return null;
+      
+      case 'confirmPassword':
+        if (this.newUser.setPassword && !value.trim()) return 'Confirm Password is required when Set Password is enabled';
+        if (this.newUser.setPassword && value !== this.newUser.password) return 'Passwords do not match';
         return null;
       
       case 'contactNo':
@@ -1217,7 +1242,15 @@ export class UsersComponent implements OnInit {
   validateAllFields(): void {
     this.validationErrors = {};
     
-    const fieldsToValidate = ['userId', 'firstName', 'lastName', 'email', 'password', 'contactNo', 'dateOfBirth', 'address', 'role'];
+    const fieldsToValidate = ['userName', 'firstName', 'lastName', 'email', 'contactNo', 'dateOfBirth', 'address'];
+    
+    // Add conditional password validation
+    if (this.newUser.setPassword) {
+      fieldsToValidate.push('password', 'confirmPassword');
+    }
+    
+    // Always validate middleName but it's optional (no error if empty)
+    fieldsToValidate.push('middleName');
     
     fieldsToValidate.forEach(field => {
       const value = this.newUser[field as keyof typeof this.newUser] as string;
@@ -1250,7 +1283,14 @@ export class UsersComponent implements OnInit {
   }
   
   hasAnyValidationErrors(): boolean {
-    return Object.keys(this.validationErrors).length > 0;
+    const hasErrors = Object.keys(this.validationErrors).length > 0;
+    console.log('🔍 hasAnyValidationErrors() check:', {
+      validationErrors: this.validationErrors,
+      errorCount: Object.keys(this.validationErrors).length,
+      hasErrors: hasErrors,
+      errorKeys: Object.keys(this.validationErrors)
+    });
+    return hasErrors;
   }
 
   getValidationErrorsList(): string[] {
@@ -1259,17 +1299,18 @@ export class UsersComponent implements OnInit {
   
   isFormValid(): boolean {
     this.validateAllFields();
-    return !this.hasAnyValidationErrors() && 
-           !!(this.newUser.userId &&
-              this.newUser.firstName &&
-              this.newUser.lastName &&
-              this.newUser.email &&
-              this.newUser.password &&
-              this.newUser.contactNo &&
-              this.newUser.dateOfBirth &&
-              this.newUser.address &&
-              this.newUser.role &&
-              this.newUser.status);
+    const baseFieldsValid = !!(this.newUser.userName &&
+                              this.newUser.firstName &&
+                              this.newUser.lastName &&
+                              this.newUser.email &&
+                              this.newUser.contactNo &&
+                              this.newUser.dateOfBirth &&
+                              this.newUser.address);
+    
+    const passwordFieldsValid = !this.newUser.setPassword || 
+                               !!(this.newUser.password && this.newUser.confirmPassword && this.newUser.password === this.newUser.confirmPassword);
+    
+    return !this.hasAnyValidationErrors() && baseFieldsValid && passwordFieldsValid;
   }
 
   // Search and filter methods
@@ -1289,8 +1330,6 @@ export class UsersComponent implements OnInit {
 
   clearFilters(): void {
     this.searchTerm = '';
-    this.selectedStatus = '';
-    this.selectedRole = '';
     this.selectedJoinedMonth = '';
     this.selectedJoinedYear = '';
     this.showFilterDropdown = false;
@@ -1307,13 +1346,9 @@ export class UsersComponent implements OnInit {
         user.firstName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         user.lastName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        user.userId.toLowerCase().includes(this.searchTerm.toLowerCase());
+        user.userName.toLowerCase().includes(this.searchTerm.toLowerCase());
 
-      // Status filter
-      const statusMatch = !this.selectedStatus || user.status === this.selectedStatus;
 
-      // Role filter
-      const roleMatch = !this.selectedRole || user.role === this.selectedRole;
 
       // Joined date filter
        let dateMatch = true;
@@ -1336,10 +1371,75 @@ export class UsersComponent implements OnInit {
          }
        }
 
-      return searchMatch && statusMatch && roleMatch && dateMatch;
+      return searchMatch && dateMatch;
     });
 
     // Don't call updatePagination here since we're using API-based pagination
     // this.updatePagination();
+  }
+
+  // Edit user - open form in edit mode and load user data
+  editUser(username: string): void {
+    console.log('Editing user:', username);
+    this.isEditMode = true;
+    this.editingUsername = username;
+    this.loadUserForEdit(username);
+    this.showUserForm = true;
+  }
+
+  // Load user data for editing
+  loadUserForEdit(username: string): void {
+    this.loading = true;
+    this.error = null;
+    
+    this.userApiService.getUserByUsername(username).subscribe({
+      next: (response: any) => {
+        console.log('✅ API Response received:', response);
+        
+        if (response.isSuccess && response.value) {
+          const apiUser = response.value;
+          console.log('✅ User data loaded for editing:', apiUser);
+          
+          // Format date for input field (convert from ISO to YYYY-MM-DD)
+          let formattedDate = '';
+          if (apiUser.dateOfBirth) {
+            const date = new Date(apiUser.dateOfBirth);
+            formattedDate = date.toISOString().split('T')[0];
+          }
+          
+          // Populate the form with user data
+          this.newUser = {
+            picture: apiUser.picture || '',
+            userName: apiUser.userName || '',
+            firstName: apiUser.firstName || '',
+            middleName: apiUser.middleName || '',
+            lastName: apiUser.lastName || '',
+            dateOfBirth: formattedDate,
+            contactNo: apiUser.contactNo || '',
+            email: apiUser.email || '',
+            address: apiUser.address || '',
+            emailVerified: false, // Set default or from API if available
+            setPassword: false, // Don't pre-fill password fields for security
+            password: '',
+            confirmPassword: ''
+          };
+          
+          this.loading = false;
+        } else {
+          console.error('❌ API returned unsuccessful response:', response);
+          this.error = response.errorMessage || 'Failed to load user data';
+          this.showFailureNotification(response.errorMessage || 'Failed to load user data');
+          this.loading = false;
+          this.showUserForm = false; // Close form on error
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error loading user for edit:', error);
+        this.error = error.message || 'Failed to load user data';
+        this.showFailureNotification(error.message || 'Failed to load user data');
+        this.loading = false;
+        this.showUserForm = false; // Close form on error
+      }
+    });
   }
 }

@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { LucideAngularModule, Home, Users, Settings, BarChart3, FileText, LogOut, LucideIconData } from 'lucide-angular';
+import { LucideAngularModule, Home, Users, Settings, LogOut, Shield, LucideIconData } from 'lucide-angular';
 import { UserCountService } from '../../services/user-count.service';
 import { AuthService, User } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
@@ -118,14 +118,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
       badge: this.userCount.toString()
     },
     {
-      title: 'Analytics',
-      icon: BarChart3,
-      href: '/dashboard/analytics'
-    },
-    {
-      title: 'Reports',
-      icon: FileText,
-      href: '/dashboard/reports'
+      title: 'Manage Role',
+      icon: Shield,
+      href: '/dashboard/manage-role'
     },
     {
       title: 'Settings',

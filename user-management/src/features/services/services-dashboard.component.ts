@@ -319,6 +319,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
         this.addDebugLog('✅ API call successful!');
         this.addDebugLog(`Response received: ${JSON.stringify(response)}`);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       error: (error: any) => {
         this.addDebugLog('❌ API call failed!');
         this.addDebugLog(`Error: ${error.message}`);
@@ -413,16 +414,14 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
     * Construct SSO URL with token
     */
    private constructSSOUrl(service: PermittedService, token: string): string {
-     const baseUrl = service.baseUrl.endsWith('/') ? service.baseUrl.slice(0, -1) : service.baseUrl;
-     
-     // Different SSO URL patterns based on service configuration
-     // Use default SSO path since ssoPath is not available in PermittedService
-     const ssoPath = '/sso';
-     const finalUrl = `${baseUrl}${ssoPath}?token=${encodeURIComponent(token)}`;
-     
-     this.addDebugLog(`🔧 Constructing SSO URL: baseUrl=${baseUrl}, ssoPath=${ssoPath}, token=${token}, finalUrl=${finalUrl}`);
-     
-     return finalUrl;
+  let baseUrl = service.baseUrl.endsWith('/') ? service.baseUrl.slice(0, -1) : service.baseUrl;
+  // Remove any existing token parameter from baseUrl or ssoPath
+  baseUrl = baseUrl.replace(/\/sso\?token=.*$/, '');
+  // Use default SSO path
+  const ssoPath = '/sso';
+  const finalUrl = `${baseUrl}${ssoPath}?token=${encodeURIComponent(token)}`;
+  this.addDebugLog(`🔧 Constructing SSO URL: baseUrl=${baseUrl}, ssoPath=${ssoPath}, token=${token}, finalUrl=${finalUrl}`);
+  return finalUrl;
    }
   
   /**
@@ -794,6 +793,7 @@ export class ServicesDashboardComponent implements OnInit, OnDestroy {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const response = await fetch(healthCheckUrl, {
         method: 'GET',
         signal: controller.signal,

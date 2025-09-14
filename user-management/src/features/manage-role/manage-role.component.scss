@@ -1,0 +1,96 @@
+// Manage Role Component Styles
+
+.relative {
+  position: relative;
+}
+
+// Custom scrollbar for dropdown lists
+.max-h-60::-webkit-scrollbar {
+  width: 6px;
+}
+
+.max-h-60::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.max-h-60::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.max-h-60::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+// Smooth transitions for interactive elements
+input {
+  transition: all 0.2s ease-in-out;
+}
+
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+// Focus states
+input:focus {
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+// Dropdown animation
+.absolute {
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .grid-cols-1.md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .p-6 {
+    padding: 1rem;
+  }
+  
+  .max-w-4xl {
+    max-width: 100%;
+  }
+}
+
+// Message animations
+.bg-green-50,
+.bg-red-50 {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Loading state
+.disabled\:opacity-50:disabled {
+  cursor: not-allowed;
+}
+
+// Hover effects for dropdown items
+.hover\:bg-accent:hover {
+  transition: background-color 0.15s ease-in-out;
+}

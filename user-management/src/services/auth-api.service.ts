@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError, from } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { appConfig } from '../config/app.config';
@@ -100,14 +100,23 @@ export class AuthApiService {
         }
       }),
       catchError(error => {
+        console.log('API Error Response:', error); // Debug log
         let errorMessage = 'Login failed';
-        if (error.status === 401) {
+        
+        // Check for specific error message in different response formats
+        if (error.error && error.error.errorMessage) {
+          errorMessage = error.error.errorMessage;
+        } else if (error.error && typeof error.error === 'string') {
+          errorMessage = error.error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.status === 401) {
           errorMessage = 'Invalid username or password';
         } else if (error.status === 400) {
           errorMessage = 'Invalid request format or user not found';
-        } else if (error.error && error.error.errorMessage) {
-          errorMessage = error.error.errorMessage;
         }
+        
+        console.log('Extracted error message:', errorMessage); // Debug log
         return throwError(() => new Error(errorMessage));
       })
     );
@@ -181,6 +190,23 @@ export class AuthApiService {
       return true;
     }
     return Date.now() >= parseInt(expiration);
+  }
+
+  /**
+   * Generic GET method for API requests
+   * @param endpoint - API endpoint path
+   * @returns Observable with API response
+   */
+  get<T = any>(endpoint: string): Observable<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = this.getHeaders();
+    
+    return this.http.get<T>(url, { headers }).pipe(
+      catchError(error => {
+        console.error('API GET Error:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   /**
@@ -292,6 +318,66 @@ export class AuthApiService {
    */
   logout(): void {
     this.clearTokens();
+  }
+
+  /**
+   * Set password for a new user
+   * @param userId - The user ID
+   * @param password - The current password/token
+   * @param newPassword - The new password to set
+   * @param confirmPassword - The confirmation password
+   * @returns Observable with the API response
+   */
+  setUserPassword(userId: string, password: string, newPassword: string, confirmPassword: string): Observable<any> {
+    // Add user ID and password as query parameters
+    const params = new HttpParams()
+      .set('userId', userId)
+      .set('password', password);
+    
+    //const setPasswordUrl = $`{this.baseUrl}/api/users/password`;
+    
+    // Include user credentials in headers for secure transmission
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'x-api-token': password,
+      //'Authorization': `Bearer ${password}` // Additional security header
+    });
+    
+    // Send new password and confirmation in request body
+    const requestBody = {
+      newPassword: newPassword,
+      confirmNewPassword: confirmPassword
+    };
+
+    return this.http.post(`${this.baseUrl}/api/users/${userId}/password`, requestBody, { headers }).pipe(
+      map((response: any) => {
+        console.log('Set password API response:', response);
+        return response;
+      }),
+      catchError(error => {
+        console.error('Set password API error:', error);
+        let errorMessage = 'Failed to set password';
+        
+        if (error.error && error.error.errorMessage) {
+          errorMessage = error.error.errorMessage;
+        } else if (error.error && typeof error.error === 'string') {
+          errorMessage = error.error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.status === 400) {
+          errorMessage = 'Invalid password format or user not found';
+        } else if (error.status === 401) {
+          errorMessage = 'Unauthorized. Invalid credentials.';
+        } else if (error.status === 403) {
+          errorMessage = 'Forbidden. Access denied.';
+        } else if (error.status === 422) {
+          errorMessage = 'Password confirmation does not match';
+        }
+        
+        return throwError(() => new Error(errorMessage));
+      })
+    );
   }
 
   /**

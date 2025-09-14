@@ -37,20 +37,16 @@ export const routes: Routes = [
         loadComponent: () => import('../features/users/users.component').then(m => m.UsersComponent)
       },
       {
-        path: 'analytics',
-        loadComponent: () => import('../features/analytics/analytics.component').then(m => m.AnalyticsComponent)
-      },
-      {
-        path: 'reports',
-        loadComponent: () => import('../features/reports/reports.component').then(m => m.ReportsComponent)
-      },
-      {
         path: 'profile',
         loadComponent: () => import('../features/profile/profile.component').then(m => m.ProfileComponent)
       },
       {
         path: 'settings',
         loadComponent: () => import('../features/settings/settings.component').then(m => m.SettingsComponent)
+      },
+      {
+        path: 'manage-role',
+        loadComponent: () => import('../features/manage-role/manage-role.component').then(m => m.ManageRoleComponent)
       },
       {
         path: 'auth-test',

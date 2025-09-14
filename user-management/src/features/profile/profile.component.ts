@@ -1,14 +1,13 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, User, Mail, Phone, MapPin, Calendar, Edit, Save, X } from 'lucide-angular';
+import { LucideAngularModule, User, Mail, Phone, MapPin, Calendar } from 'lucide-angular';
 import { AuthService, User as AuthUser } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule],
   template: `
     <div class="container mx-auto p-6 max-w-4xl">
       <!-- Header -->
@@ -28,9 +27,6 @@ import { Subscription } from 'rxjs';
                 <div class="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-semibold text-primary">
                   {{ getInitials(currentUser?.name || '') }}
                 </div>
-                <button class="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90">
-                  <lucide-angular [img]="editIcon" class="h-4 w-4"></lucide-angular>
-                </button>
               </div>
               
               <!-- User Info -->
@@ -44,20 +40,13 @@ import { Subscription } from 'rxjs';
               </div>
             </div>
             
-            <!-- Edit Button -->
-            <button 
-              (click)="toggleEditMode()"
-              class="inline-flex items-center space-x-2 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-            >
-              <lucide-angular [img]="isEditMode ? cancelIcon : editIcon" class="h-4 w-4"></lucide-angular>
-              <span>{{ isEditMode ? 'Cancel' : 'Edit Profile' }}</span>
-            </button>
+
           </div>
         </div>
 
         <!-- Profile Details -->
         <div class="p-6">
-          <form (ngSubmit)="saveProfile()" #profileForm="ngForm">
+          <div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Personal Information -->
               <div class="space-y-4">
@@ -72,11 +61,9 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-name"
                     type="text"
-                    [(ngModel)]="profileData.name"
-                    name="name"
-                    [readonly]="!isEditMode"
-                    class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    [class.bg-muted]="!isEditMode"
+                    [value]="currentUser?.name || 'N/A'"
+                    readonly
+                    class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
                 </div>
 
@@ -89,11 +76,9 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-email"
                     type="email"
-                    [(ngModel)]="profileData.email"
-                    name="email"
-                    [readonly]="!isEditMode"
-                    class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    [class.bg-muted]="!isEditMode"
+                    [value]="currentUser?.email || 'N/A'"
+                    readonly
+                    class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
                 </div>
 
@@ -106,11 +91,9 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-phone"
                     type="tel"
-                    [(ngModel)]="profileData.phone"
-                    name="phone"
-                    [readonly]="!isEditMode"
-                    class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    [class.bg-muted]="!isEditMode"
+                    [value]="currentUser?.phone || 'N/A'"
+                    readonly
+                    class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
                 </div>
 
@@ -123,11 +106,9 @@ import { Subscription } from 'rxjs';
                   <input
                     id="profile-location"
                     type="text"
-                    [(ngModel)]="profileData.location"
-                    name="location"
-                    [readonly]="!isEditMode"
-                    class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                    [class.bg-muted]="!isEditMode"
+                    [value]="currentUser?.location || 'N/A'"
+                    readonly
+                    class="w-full px-3 py-2 border border-input rounded-md bg-muted text-muted-foreground"
                   />
                 </div>
               </div>
@@ -186,24 +167,7 @@ import { Subscription } from 'rxjs';
               </div>
             </div>
 
-            <!-- Save Button -->
-            <div *ngIf="isEditMode" class="mt-8 flex justify-end space-x-4">
-              <button
-                type="button"
-                (click)="toggleEditMode()"
-                class="px-4 py-2 border border-input rounded-md bg-background hover:bg-accent hover:text-accent-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-              >
-                <lucide-angular [img]="saveIcon" class="h-4 w-4"></lucide-angular>
-                <span>Save Changes</span>
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
 
@@ -258,15 +222,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
 
   currentUser: AuthUser | null = null;
-  isEditMode = false;
   private userSubscription: Subscription = new Subscription();
-
-  profileData = {
-    name: '',
-    email: '',
-    phone: '',
-    location: ''
-  };
 
   accountStats = {
     totalLogins: 127,
@@ -280,9 +236,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   phoneIcon = Phone;
   locationIcon = MapPin;
   calendarIcon = Calendar;
-  editIcon = Edit;
-  saveIcon = Save;
-  cancelIcon = X;
 
   constructor() {}
 
@@ -290,14 +243,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.userSubscription = this.authService.currentUser$.subscribe(
       user => {
         this.currentUser = user;
-        if (user) {
-          this.profileData = {
-            name: user.name || '',
-            email: user.email || '',
-            phone: user.phone || '',
-            location: user.location || ''
-          };
-        }
       }
     );
   }
@@ -315,37 +260,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
       .slice(0, 2);
   }
 
-  toggleEditMode(): void {
-    this.isEditMode = !this.isEditMode;
-    if (!this.isEditMode && this.currentUser) {
-      // Reset form data if canceling
-      this.profileData = {
-        name: this.currentUser.name || '',
-        email: this.currentUser.email || '',
-        phone: this.currentUser.phone || '',
-        location: this.currentUser.location || ''
-      };
-    }
-  }
 
-  saveProfile(): void {
-    if (this.currentUser) {
-      // Update the user data in the auth service
-      const updatedUser: AuthUser = {
-        ...this.currentUser,
-        name: this.profileData.name,
-        email: this.profileData.email,
-        phone: this.profileData.phone,
-        location: this.profileData.location
-      };
-      
-      this.authService.updateUser(updatedUser);
-      this.isEditMode = false;
-      
-      // Show success message (you can implement a toast service)
-      console.log('Profile updated successfully');
-    }
-  }
 
   formatDate(date: Date | string | undefined): string {
     if (!date) return 'N/A';

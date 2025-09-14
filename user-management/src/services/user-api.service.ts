@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { User } from './auth.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -153,6 +153,50 @@ export class UserApiService {
     return this.apiService.get<User>(`/users/${userId}`);
   }
 
+  // Get user by username
+  getUserByUsername(username: string): Observable<ApiUser> {
+    const url = `${this.baseUrl}/api/users/${username}`;
+    
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': this.authApiService.getAuthorizationHeader() || ''
+    });
+
+    console.log('🔍 Fetching user by username from API:', {
+      baseUrl: this.baseUrl,
+      finalUrl: url,
+      username: username,
+      headers: headers.keys(),
+      authHeader: this.authApiService.getAuthorizationHeader()
+    });
+
+    return this.http.get<ApiUser>(url, { headers }).pipe(
+      catchError(error => {
+        console.error('🚨 API Request Failed:', {
+          url,
+          error: error,
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message
+        });
+        
+        // Handle specific error cases
+        if (error.status === 0) {
+          throw new Error('Network error: Unable to connect to the API server. Please check if the server is running and accessible.');
+        } else if (error.status === 401) {
+          throw new Error('Authentication failed. Please login again.');
+        } else if (error.status === 403) {
+          throw new Error('Access forbidden. You do not have permission to access this resource.');
+        } else if (error.status === 404) {
+          throw new Error('User not found.');
+        } else {
+          throw new Error(`API request failed: ${error.message || 'Unknown error'}`);
+        }
+      })
+    );
+  }
+
   // Create new user
   createUser(userData: CreateUserRequest): Observable<User> {
     return this.apiService.post<User>('/users', userData);
@@ -191,12 +235,51 @@ export class UserApiService {
     });
   }
 
-  // Reset user password (admin only)
-  resetUserPassword(userId: string, newPassword: string): Observable<void> {
-    return this.apiService.post<void>(`/users/${userId}/reset-password`, {
-      newPassword
+  // Update user by username
+  updateUserByUsername(username: string, userData: any): Observable<any> {
+    const url = `${this.baseUrl}/api/users/${username}`;
+    
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': this.authApiService.getAuthorizationHeader() || ''
     });
+    
+    console.log('🔄 Making PUT request to:', url);
+    console.log('📤 Request payload:', userData);
+    console.log('🔑 Request headers:', headers);
+    
+    return this.http.put<any>(url, userData, { headers }).pipe(
+      tap(response => {
+        console.log('✅ PUT /api/users/' + username + ' - Success:', response);
+      }),
+      catchError(error => {
+        console.error('❌ PUT /api/users/' + username + ' - Error:', error);
+        
+        let errorMessage = 'Failed to update user';
+        
+        if (error.status === 0) {
+          errorMessage = 'Network error - please check your connection';
+        } else if (error.status === 401) {
+          errorMessage = 'Unauthorized - please login again';
+        } else if (error.status === 403) {
+          errorMessage = 'Forbidden - insufficient permissions';
+        } else if (error.status === 404) {
+          errorMessage = 'User not found';
+        } else if (error.status === 400) {
+          errorMessage = error.error?.message || 'Invalid user data';
+        } else if (error.status >= 500) {
+          errorMessage = 'Server error - please try again later';
+        } else if (error.error?.message) {
+          errorMessage = error.error.message;
+        }
+        
+        return throwError(() => new Error(errorMessage));
+      }),
+    )
   }
+
+ 
 
   // Get user roles
   getUserRoles(): Observable<string[]> {
@@ -213,41 +296,10 @@ export class UserApiService {
     return this.apiService.delete<void>(`/users/${userId}/roles/${role}`);
   }
 
-  // Bulk operations
-  bulkUpdateUsers(userIds: string[], updates: UpdateUserRequest): Observable<User[]> {
-    return this.apiService.post<User[]>('/users/bulk-update', {
-      userIds,
-      updates
-    });
-  }
+  
 
-  // Bulk delete users
-  bulkDeleteUsers(userIds: string[]): Observable<void> {
-    return this.apiService.post<void>('/users/bulk-delete', { userIds });
-  }
 
-  // Export users
-  exportUsers(params?: UserQueryParams): Observable<Blob> {
-    return this.apiService.get<Blob>('/users/export', params);
-  }
 
-  // Import users
-  importUsers(file: File): Observable<{ imported: number; errors: string[] }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    return this.apiService.post<{ imported: number; errors: string[] }>('/users/import', formData);
-  }
-
-  // Get user statistics
-  getUserStats(): Observable<{
-    total: number;
-    active: number;
-    inactive: number;
-    byRole: { [role: string]: number };
-    recentJoins: number;
-  }> {
-    return this.apiService.get('/users/stats');
-  }
 
   // Search users
   searchUsers(query: string, filters?: {
@@ -261,21 +313,10 @@ export class UserApiService {
     });
   }
 
-  // Get user activity log
-  getUserActivity(userId: string, params?: {
-    page?: number;
-    limit?: number;
-    from?: string;
-    to?: string;
-  }): Observable<{
-    activities: UserActivity[];
-    total: number;
-  }> {
-    return this.apiService.get(`/users/${userId}/activity`, params);
-  }
+
 
   // Create new user with API-specific interface
-  createApiUser(userData: CreateUserRequest): Observable<ApiUser> {
+  createApiUser(userData:any): Observable<any> {
     const url = `${this.baseUrl}/api/users`;
     
     const headers = new HttpHeaders({
@@ -284,7 +325,7 @@ export class UserApiService {
       'Authorization': this.authApiService.getAuthorizationHeader() || ''
     });
 
-    return this.http.post<ApiUser>(url, userData, { headers }).pipe(
+    return this.http.post<any>(url, userData, { headers }).pipe(
       catchError(error => {
         console.error('🚨 Create User API Request Failed:', error);
         throw new Error(`Failed to create user: ${error.message || 'Unknown error'}`);
